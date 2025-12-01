@@ -12,6 +12,24 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "infinite-edit-sidebar",
+          "title": "Infinite Edit",
+          "icon": "assets/logo.svg"
+        }
+      ]
+    },
+    "views": {
+      "infinite-edit-sidebar": [
+        {
+          "type": "webview",
+          "id": "infinite-edit.sidebarView",
+          "name": "Infinite Edit"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "infinite-edit.openCanvas",

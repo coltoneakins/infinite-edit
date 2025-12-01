@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { InfiniteEditPanel } from './InfiniteEditPanel';
+import { SidebarProvider } from './SidebarProvider';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -28,6 +29,11 @@ export function activate(context: vscode.ExtensionContext) {
 			InfiniteEditPanel.currentPanel?.openFile(editor.document);
 		}
 	});
+
+	const sidebarProvider = new SidebarProvider(context.extensionUri);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider)
+	);
 
 	context.subscriptions.push(openCanvasDisposable, openFileDisposable);
 }
