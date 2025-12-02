@@ -5,6 +5,16 @@ declare function acquireVsCodeApi(): any;
 
 const vscode = acquireVsCodeApi();
 
+// Configure Monaco Environment for webview context
+// Disable workers to avoid CSP issues in VS Code webviews
+(self as any).MonacoEnvironment = {
+    getWorker() {
+        // Return null to disable workers and run everything in the main thread
+        // This is the recommended approach for VS Code webviews
+        return null;
+    }
+};
+
 (async () => {
     const app = new Application();
     await app.init({

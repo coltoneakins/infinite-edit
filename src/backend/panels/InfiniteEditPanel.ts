@@ -18,6 +18,7 @@ export class InfiniteEditPanel {
         }
 
         // Otherwise, create a new panel.
+        console.log('Creating new panel');
         const panel = vscode.window.createWebviewPanel(
             'infiniteEdit',
             'Infinite Edit',
