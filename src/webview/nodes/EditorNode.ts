@@ -27,6 +27,11 @@ export class EditorNode extends Container {
         this.titleBar.cursor = 'move';
         this.addChild(this.titleBar);
 
+        // Create a mask for the title bar
+        this.titleBarMask = new Graphics();
+        this.titleBar.addChild(this.titleBarMask);
+        this.titleBarMask.renderable = false; // Don't render the mask itself, just use it for clipping
+
         // Title Text
         const style = new TextStyle({
             fontFamily: 'Arial',
@@ -37,9 +42,7 @@ export class EditorNode extends Container {
         this.titleText = new Text({ text: file, style, textureStyle: { scaleMode: 'linear' } });
         this.titleBar.addChild(this.titleText);
 
-        // Create a mask for the title bar
-        this.titleBarMask = new Graphics();
-        this.titleBar.addChild(this.titleBarMask);
+        // Apply mask to text
         this.titleText.mask = this.titleBarMask;
 
         // Draw initial graphics

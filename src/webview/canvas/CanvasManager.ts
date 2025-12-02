@@ -1,5 +1,5 @@
 import { Application, Container, Graphics, FederatedPointerEvent, FederatedWheelEvent } from 'pixi.js';
-import { EditorNode } from './EditorNode';
+import { EditorNode } from '../nodes/EditorNode';
 
 export class CanvasManager {
     private app: Application;

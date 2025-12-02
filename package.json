@@ -2,6 +2,10 @@
   "name": "infinite-edit",
   "displayName": "Infinite Edit",
   "description": "Turn your codebase into an infinite, navigable canvas for fluid, spatial thinking and seamless editing.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coltoneakins/infinite-edit.git"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.104.0"
@@ -26,7 +30,8 @@
         {
           "type": "webview",
           "id": "infinite-edit.sidebarView",
-          "name": "Infinite Edit"
+          "name": "Infinite Edit",
+          "icon": "assets/logo.svg"
         }
       ]
     },

@@ -1,5 +1,5 @@
 import { Application } from 'pixi.js';
-import { CanvasManager } from './CanvasManager';
+import { CanvasManager } from './canvas/CanvasManager';
 
 declare function acquireVsCodeApi(): any;
 
