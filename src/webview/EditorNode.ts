@@ -33,8 +33,9 @@ export class EditorNode extends Container {
             fontFamily: 'Arial',
             fontSize: 14,
             fill: '#ffffff',
+            whiteSpace: 'pre-line'
         });
-        this.titleText = new Text({ text: file, style });
+        this.titleText = new Text({ text: file, style, textureStyle: { scaleMode: 'linear' } });
         this.titleText.x = 10;
         this.titleText.y = 5;
         this.addChild(this.titleText);
