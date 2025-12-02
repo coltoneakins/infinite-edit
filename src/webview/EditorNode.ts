@@ -4,6 +4,7 @@ import * as monaco from 'monaco-editor';
 export class EditorNode extends Container {
     private background: Graphics;
     private titleBar: Graphics;
+    private titleBarMask: Graphics;
     private titleText: Text;
     private editorContainer: HTMLDivElement;
     private editorInstance: monaco.editor.IStandaloneCodeEditor;
@@ -34,9 +35,12 @@ export class EditorNode extends Container {
             whiteSpace: 'pre-line'
         });
         this.titleText = new Text({ text: file, style, textureStyle: { scaleMode: 'linear' } });
-        this.titleText.x = 10;
-        this.titleText.y = 5;
-        this.addChild(this.titleText);
+        this.titleBar.addChild(this.titleText);
+
+        // Create a mask for the title bar
+        this.titleBarMask = new Graphics();
+        this.titleBar.addChild(this.titleBarMask);
+        this.titleText.mask = this.titleBarMask;
 
         // Draw initial graphics
         this.draw();
@@ -94,8 +98,8 @@ export class EditorNode extends Container {
 
         // Update mask
         this.titleBarMask.clear();
-        this.titleBarMask.fill(0xffffff);
         this.titleBarMask.rect(0, 0, this.width_, this.titleHeight);
+        this.titleBarMask.fill(0xffffff); // Fill is required for mask to work
 
         // Update Text Alignment
         const padding = 10;
