@@ -3,6 +3,7 @@
 'use strict';
 
 const path = require('path');
+const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -81,6 +82,11 @@ const webviewConfig = {
   infrastructureLogging: {
     level: "log",
   },
+  plugins: [
+    new MonacoWebpackPlugin({
+      languages: ['javascript', 'typescript', 'json', 'css', 'html']
+    })
+  ]
 };
 
 module.exports = [extensionConfig, webviewConfig];
