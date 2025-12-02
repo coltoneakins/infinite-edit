@@ -30,7 +30,6 @@ export class EditorNode extends Container {
         // Create a mask for the title bar
         this.titleBarMask = new Graphics();
         this.titleBar.addChild(this.titleBarMask);
-        this.titleBarMask.renderable = false; // Don't render the mask itself, just use it for clipping
 
         // Title Text
         const style = new TextStyle({
