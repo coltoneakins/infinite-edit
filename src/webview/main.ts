@@ -2,12 +2,35 @@ import App from './core/App';
 import MessageClient from './core/MessageClient';
 
 // Configure Monaco Environment for webview context
-// Disable workers to avoid CSP issues in VS Code webviews
+// We use a Blob proxy to allow workers to load cross-origin scripts in the webview
 (self as any).MonacoEnvironment = {
-    getWorker() {
-        // Return null to disable workers and run everything in the main thread
-        // This is the recommended approach for VS Code webviews
-        return null;
+    getWorker: function (_moduleId: any, label: string) {
+        const getWorkerUrl = (url: string) => {
+            // Create a blob that imports the actual worker script
+            // This bypasses the security restriction where web workers cannot be created from cross-origin URLs
+            const blob = new Blob([`importScripts("${url}");`], { type: 'text/javascript' });
+            return URL.createObjectURL(blob);
+        };
+
+        const workers = (window as any).MONACO_WORKERS;
+
+        switch (label) {
+            case 'json':
+                return new Worker(getWorkerUrl(workers.json));
+            case 'css':
+            case 'scss':
+            case 'less':
+                return new Worker(getWorkerUrl(workers.css));
+            case 'html':
+            case 'handlebars':
+            case 'razor':
+                return new Worker(getWorkerUrl(workers.html));
+            case 'typescript':
+            case 'javascript':
+                return new Worker(getWorkerUrl(workers.typescript));
+            default:
+                return new Worker(getWorkerUrl(workers.editor));
+        }
     }
 };
 
