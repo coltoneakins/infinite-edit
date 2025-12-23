@@ -1,52 +1,27 @@
 import * as vscode from 'vscode';
 import { InfiniteEditPanel } from './panels/InfiniteEditPanel';
 import { SidebarProvider } from './providers/SidebarProvider';
+import { openCanvasCommand } from './commands/OpenCanvasCommand';
+import { openFileCommand } from './commands/OpenFileCommand';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
-    console.log('Congratulations, your extension "infinite-edit" is now active!');
+    console.log('Infinite Edit: Activated');
 
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with registerCommand
-    // The commandId parameter must match the command field in package.json
-    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', () => {
-        InfiniteEditPanel.createOrShow(context.extensionUri);
-    });
+    // Register commands for VS Code's command palette
+    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri));
+    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri));
+    context.subscriptions.push(openCanvasDisposable, openFileDisposable);
 
-    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', () => {
-        if (!InfiniteEditPanel.currentPanel) {
-            InfiniteEditPanel.createOrShow(context.extensionUri);
-        }
-
-        const editor = vscode.window.activeTextEditor;
-        if (editor) {
-            InfiniteEditPanel.currentPanel?.openFile(editor.document);
-        } else {
-            vscode.window.showErrorMessage('Infinite Edit: No active editor found.', 'Open File').then(async (selection) => {
-                if (selection === 'Open File') {
-                    const files = await vscode.workspace.findFiles('**/*');
-                    const items = files.map(file => ({ label: vscode.workspace.asRelativePath(file), uri: file }));
-                    const selected = await vscode.window.showQuickPick(items, { placeHolder: 'Select a file to open in Infinite Edit' });
-
-                    if (selected) {
-                        const document = await vscode.workspace.openTextDocument(selected.uri);
-                        InfiniteEditPanel.currentPanel?.openFile(document);
-                    }
-                }
-            });
-        }
-    });
-
+    // Register the sidebar provider
+    // This creates a new webview that is displayed in the sidebar that is paired with the InfiniteEditPanel
     const sidebarProvider = new SidebarProvider(context.extensionUri);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider)
     );
 
-    context.subscriptions.push(openCanvasDisposable, openFileDisposable);
 }
 
 // This method is called when your extension is deactivated

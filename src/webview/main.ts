@@ -1,9 +1,5 @@
-import { Application } from 'pixi.js';
-import { CanvasManager } from './canvas/CanvasManager';
-
-declare function acquireVsCodeApi(): any;
-
-const vscode = acquireVsCodeApi();
+import App from './core/App';
+import MessageClient from './core/MessageClient';
 
 // Configure Monaco Environment for webview context
 // Disable workers to avoid CSP issues in VS Code webviews
@@ -16,48 +12,15 @@ const vscode = acquireVsCodeApi();
 };
 
 (async () => {
-    const app = new Application();
-    await app.init({
-        resizeTo: window,
-        backgroundColor: 0x1099bb,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
-    });
 
-    const container = document.getElementById('canvas-container');
-    if (container) {
-        container.appendChild(app.canvas);
-    } else {
-        document.body.appendChild(app.canvas);
-    }
+    // Initialize an instance of the InfiniteEdit app
+    const app = new App();
 
-    const canvasManager = new CanvasManager(app);
+    // Wait for the app to be fully initialized
+    await app.ready;
 
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        app.renderer.resize(window.innerWidth, window.innerHeight);
-        canvasManager.onResize();
-    });
+    // Initialize message client
+    // This is where the frontend handles message passing
+    const messageClient = new MessageClient(app.appInstance, app.canvasManagerInstance);
 
-    // Listen for messages from the extension
-    window.addEventListener('message', event => {
-        const message = event.data;
-        switch (message.command) {
-            case 'openFile':
-                canvasManager.addEditor(message.file, message.content);
-                break;
-        }
-    });
-
-    // Handle save requests from editors
-    window.addEventListener('save-file', (event: any) => {
-        vscode.postMessage({
-            command: 'saveFile',
-            file: event.detail.file,
-            content: event.detail.content
-        });
-    });
-
-    // Signal that we are ready to receive messages
-    vscode.postMessage({ command: 'ready' });
 })();

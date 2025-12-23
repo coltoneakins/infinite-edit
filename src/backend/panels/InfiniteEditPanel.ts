@@ -2,36 +2,9 @@ import * as vscode from 'vscode';
 
 export class InfiniteEditPanel {
     public static currentPanel: InfiniteEditPanel | undefined;
-    private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
+    private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
-
-    public static createOrShow(extensionUri: vscode.Uri) {
-        const column = vscode.window.activeTextEditor
-            ? vscode.window.activeTextEditor.viewColumn
-            : undefined;
-
-        // If we already have a panel, show it.
-        if (InfiniteEditPanel.currentPanel) {
-            InfiniteEditPanel.currentPanel._panel.reveal(column);
-            return;
-        }
-
-        // Otherwise, create a new panel.
-        console.log('Creating new panel');
-        const panel = vscode.window.createWebviewPanel(
-            'infiniteEdit',
-            'Infinite Edit',
-            column || vscode.ViewColumn.One,
-            {
-                enableScripts: true,
-                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')]
-            }
-        );
-
-        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri);
-    }
-
     private _isReady: boolean = false;
     private _pendingMessages: any[] = [];
 
@@ -77,6 +50,69 @@ export class InfiniteEditPanel {
         );
     }
 
+    private _getHtmlForWebview(webview: vscode.Webview) {
+        // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js'));
+
+        // SECURITY: Use a nonce to only allow scripts from this extension to be run.
+        const nonce = this._getNonce();
+        // Monaco Editor requires 'unsafe-inline' for dynamic styles and data: for fonts
+        // We've disabled workers, so no blob: or worker-src needed
+        const cspSource = `default-src 'none'; 
+            script-src 'nonce-${nonce}' 'unsafe-eval'; 
+            style-src ${webview.cspSource} 'unsafe-inline'; 
+            img-src ${webview.cspSource} data:; 
+            font-src ${webview.cspSource} data:;`.replace(/\s+/g, ' ').trim();
+
+        return `<!DOCTYPE html>
+			<html lang="en">
+			    <head>
+				    <meta charset="UTF-8">
+				    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+				    <meta http-equiv="Content-Security-Policy" content="${cspSource}">
+				    <title>Infinite Edit</title>
+				    <link rel="icon" type="image/png" href="${webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'icon.png'))}" />
+				    <style>
+                        body { margin: 0; padding: 0; overflow: hidden; background-color: #1e1e1e; }
+                        #canvas-container { width: 100vw; height: 100vh; }
+				    </style>
+			    </head>
+			    <body>
+			    <div id="canvas-container"></div>
+				    <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
+			    </body>
+			</html>`;
+    }
+
+    public static createOrShow(extensionUri: vscode.Uri) {
+        const column = vscode.window.activeTextEditor
+            ? vscode.window.activeTextEditor.viewColumn
+            : undefined;
+
+        // If we already have a panel, show it.
+        if (InfiniteEditPanel.currentPanel) {
+            InfiniteEditPanel.currentPanel._panel.reveal(column);
+            return;
+        }
+
+        // Otherwise, create a new panel.
+        console.log('Creating new panel');
+        const panel = vscode.window.createWebviewPanel(
+            'infiniteEdit',
+            'Infinite Edit',
+            column || vscode.ViewColumn.One,
+            {
+                enableScripts: true,
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')]
+            }
+        );
+
+        // Set the icon for the editor tab
+        panel.iconPath = vscode.Uri.joinPath(extensionUri, 'assets', 'icon.png');
+
+        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri);
+    }
+
     public openFile(document: vscode.TextDocument) {
         const message = {
             command: 'openFile',
@@ -105,37 +141,13 @@ export class InfiniteEditPanel {
         }
     }
 
-    private _getHtmlForWebview(webview: vscode.Webview) {
-        // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js'));
-
-        // Use a nonce to only allow a specific script to be run.
-        const nonce = getNonce();
-
-        return `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>Infinite Edit</title>
-        <style>
-          body { margin: 0; padding: 0; overflow: hidden; background-color: #1e1e1e; }
-          #canvas-container { width: 100vw; height: 100vh; }
-        </style>
-			</head>
-			<body>
-        <div id="canvas-container"></div>
-				<script nonce="${nonce}" type="module" src="${scriptUri}"></script>
-			</body>
-			</html>`;
+    private _getNonce() {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 32; i++) {
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+        return text;
     }
 }
 
-function getNonce() {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
-}

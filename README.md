@@ -29,11 +29,6 @@ Open files directly onto the canvas. Each file becomes a node that you can drag,
 
 -   VS Code 1.90.0 or higher.
 
-## Known Issues
-
--   Currently supports single-file nodes.
--   Resizing nodes is coming soon.
-
 ## Codebase Structure
 
 The project is organized into a clear separation of concerns between the Backend (Extension Host) and Frontend (Webview).
