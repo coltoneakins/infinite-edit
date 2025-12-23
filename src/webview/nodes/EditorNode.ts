@@ -1,11 +1,11 @@
-import { Container, Graphics, FederatedPointerEvent, Text, TextStyle, Rectangle } from 'pixi.js';
+import { Container, Graphics, FederatedPointerEvent, HTMLText, HTMLTextStyle, Rectangle } from 'pixi.js';
 import * as monaco from 'monaco-editor';
 
 export class EditorNode extends Container {
     private background: Graphics;
     private titleBar: Graphics;
     private titleBarMask: Graphics;
-    private titleText: Text;
+    private titleText: HTMLText;
     private editorContainer: HTMLDivElement;
     private editorInstance: monaco.editor.IStandaloneCodeEditor;
     private isDragging: boolean = false;
@@ -13,9 +13,11 @@ export class EditorNode extends Container {
     private width_: number = 400;
     private height_: number = 300;
     private titleHeight: number = 30;
+    private filePath: string;
 
     constructor(file: string, content: string) {
         super();
+        this.filePath = file;
 
         // Background
         this.background = new Graphics();
@@ -32,13 +34,24 @@ export class EditorNode extends Container {
         this.titleBar.addChild(this.titleBarMask);
 
         // Title Text
-        const style = new TextStyle({
-            fontFamily: 'Arial',
-            fontSize: 14,
-            fill: '#ffffff',
-            whiteSpace: 'pre-line'
+        const style = new HTMLTextStyle({
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 13,
+            fill: '#cccccc',
+            fontWeight: '400'
         });
-        this.titleText = new Text({ text: file, style, textureStyle: { scaleMode: 'linear' } });
+
+        const fileName = file.split('/').pop() || file;
+        const dirName = file.includes('/') ? file.substring(0, file.lastIndexOf('/') + 1) : '';
+        const titleHtml = dirName
+            ? `<span>${dirName}</span><span style="font-weight: 700;">${fileName}`
+            : fileName;
+
+        this.titleText = new HTMLText({
+            text: titleHtml,
+            style,
+            resolution: 10
+        });
         this.titleBar.addChild(this.titleText);
 
         // Apply mask to text
@@ -88,9 +101,10 @@ export class EditorNode extends Container {
 
     private draw() {
         this.background.clear();
+        // Use rounded rect for a more modern feel
         this.background.rect(0, 0, this.width_, this.height_);
         this.background.fill(0x252526); // VS Code editor background
-        this.background.stroke({ width: 1, color: 0x454545 });
+        this.background.stroke({ width: 5, color: 0x454545 });
 
         this.titleBar.clear();
         this.titleBar.rect(0, 0, this.width_, this.titleHeight);
@@ -114,7 +128,7 @@ export class EditorNode extends Container {
             // Left align if fits
             this.titleText.x = padding;
         }
-        this.titleText.y = this.titleHeight / 2 - this.titleText.height / 2;
+        this.titleText.y = (this.titleHeight - this.titleText.height) / 2;
     }
 
     private onDragStart(e: FederatedPointerEvent) {
@@ -166,7 +180,7 @@ export class EditorNode extends Container {
         const content = this.editorInstance.getValue();
         window.dispatchEvent(new CustomEvent('save-file', {
             detail: {
-                file: this.titleText.text,
+                file: this.filePath,
                 content: content
             }
         }));

@@ -120,7 +120,8 @@ export class InfiniteEditPanel {
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
-                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')]
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
+                retainContextWhenHidden: true
             }
         );
 

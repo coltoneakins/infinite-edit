@@ -93,10 +93,13 @@ export class Grid extends Container {
             width: 1,
             color: 0x2c2c2c,
             alpha: 0.9,
-            pixelLine: true
+            pixelLine: true,
         });
 
         // Draw Origin Dot
         this.graphics.circle(0, 0, 4).fill({ color: 0xffffff });
+
+        // Allow culling
+        this.graphics.cullable = true;
     }
 }
