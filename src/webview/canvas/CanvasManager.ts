@@ -1,10 +1,12 @@
 import { Application, Container, Graphics, FederatedPointerEvent, FederatedWheelEvent } from 'pixi.js';
 import { EditorNode } from '../nodes/EditorNode';
+import { Grid } from './Grid';
 
 export class CanvasManager {
     private app: Application;
     private stage: Container;
     private contentContainer: Container;
+    private grid: Grid;
     private isDragging: boolean = false;
     private lastPos: { x: number; y: number } | null = null;
 
@@ -15,6 +17,11 @@ export class CanvasManager {
         // Create a container for all content (nodes)
         this.contentContainer = new Container();
         this.stage.addChild(this.contentContainer);
+
+        // Initialize Grid
+        this.grid = new Grid(this.app);
+        this.contentContainer.addChild(this.grid);
+        this.grid.update();
 
         // Enable interactivity on the stage for panning
         this.stage.eventMode = 'static';
@@ -29,6 +36,7 @@ export class CanvasManager {
 
     public onResize() {
         this.stage.hitArea = this.app.screen;
+        this.grid.update();
     }
 
     public addEditor(file: string, content: string) {
@@ -65,6 +73,7 @@ export class CanvasManager {
             this.contentContainer.y += dy;
 
             this.lastPos = newPos;
+            this.grid.update();
         }
     }
 
@@ -82,5 +91,6 @@ export class CanvasManager {
         const newGlobalPos = this.contentContainer.toGlobal(localPos);
         this.contentContainer.x += e.global.x - newGlobalPos.x;
         this.contentContainer.y += e.global.y - newGlobalPos.y;
+        this.grid.update();
     }
 }
