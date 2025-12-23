@@ -1,11 +1,13 @@
 import { Application, Container, Graphics, FederatedPointerEvent, FederatedWheelEvent } from 'pixi.js';
 import { EditorNode } from '../nodes/EditorNode';
 import { Grid } from './Grid';
+import { Viewport } from './Viewport';
 
 export class CanvasManager {
     private app: Application;
     private stage: Container;
     private contentContainer: Container;
+    private viewport: Viewport;
     private grid: Grid;
     private isDragging: boolean = false;
     private lastPos: { x: number; y: number } | null = null;
@@ -18,8 +20,11 @@ export class CanvasManager {
         this.contentContainer = new Container();
         this.stage.addChild(this.contentContainer);
 
+        // Initialize Viewport
+        this.viewport = new Viewport(this.app, this.contentContainer);
+
         // Initialize Grid
-        this.grid = new Grid(this.app);
+        this.grid = new Grid(this.viewport);
         this.contentContainer.addChild(this.grid);
         this.grid.update();
 

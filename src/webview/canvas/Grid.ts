@@ -1,78 +1,53 @@
-import { Application, Container, Graphics, Rectangle } from 'pixi.js';
+import { Container, Graphics, Rectangle } from 'pixi.js';
+import { Viewport } from './Viewport';
 
 /**
  * Intelligent Grid that draws major and minor lines based on the viewport.
- * It uses a local cache (lastDrawnBounds) to avoid redrawing every frame, 
- * which prevents flashing while still responding to pan and zoom.
+ * Uses the Viewport utility to calculate visible areas.
  */
 export class Grid extends Container {
-    private app: Application;
+    private viewport: Viewport;
     private graphics: Graphics;
 
-    // Tracks the world-space area currently covered by the graphics
     private lastDrawnBounds: Rectangle = new Rectangle(0, 0, 0, 0);
     private lastScale: number = -1;
 
-    constructor(app: Application) {
+    constructor(viewport: Viewport) {
         super();
-        this.app = app;
+        this.viewport = viewport;
         this.graphics = new Graphics();
         this.addChild(this.graphics);
     }
 
     public update() {
-        const parent = this.parent;
-        if (!parent) {
-            return;
-        }
+        const bounds = this.viewport.getBounds();
+        const currentScale = this.viewport.getScale();
 
-        const currentScale = parent.scale.x;
-
-        // 1. Get current visible bounds in world space
-        const tl = parent.toLocal({ x: 0, y: 0 });
-        const br = parent.toLocal({ x: this.app.screen.width, y: this.app.screen.height });
-        const visibleRect = {
-            left: tl.x,
-            top: tl.y,
-            right: br.x,
-            bottom: br.y,
-            width: br.x - tl.x,
-            height: br.y - tl.y
-        };
-
-        // 2. Check if we need to redraw
-        // Redraw if zoom changed significantly OR if viewport is approaching the edge of drawn area
+        // 1. Check if we need to redraw
         const scaleChanged = Math.abs(currentScale - this.lastScale) > 0.01 * currentScale;
 
-        // Hysteresis: we check if the current viewport is still comfortably inside the last drawn bounds
-        // (We leave a 10% safety margin of the drawn area)
         const marginX = this.lastDrawnBounds.width * 0.1;
         const marginY = this.lastDrawnBounds.height * 0.1;
 
         const isInside = (
-            visibleRect.left >= this.lastDrawnBounds.x + marginX &&
-            visibleRect.right <= this.lastDrawnBounds.right - marginX &&
-            visibleRect.top >= this.lastDrawnBounds.y + marginY &&
-            visibleRect.bottom <= this.lastDrawnBounds.bottom - marginY
+            bounds.left >= this.lastDrawnBounds.x + marginX &&
+            bounds.right <= this.lastDrawnBounds.right - marginX &&
+            bounds.top >= this.lastDrawnBounds.y + marginY &&
+            bounds.bottom <= this.lastDrawnBounds.bottom - marginY
         );
 
         if (!scaleChanged && isInside && this.lastScale !== -1) {
             return;
         }
 
-        // 3. Calculate new draw area (Viewport size + significant buffer)
-        // We draw 3x the viewport width/height to minimize redraw frequency during panning
-        const drawWidth = visibleRect.width * 3;
-        const drawHeight = visibleRect.height * 3;
-
+        // 2. Calculate new draw area
         const majorSize = 1000;
         const minorSize = 100;
 
-        // Round to major grid for perfect alignment during transitions
-        const left = Math.floor((visibleRect.left - visibleRect.width) / majorSize) * majorSize;
-        const top = Math.floor((visibleRect.top - visibleRect.height) / majorSize) * majorSize;
-        const right = Math.ceil((visibleRect.right + visibleRect.width) / majorSize) * majorSize;
-        const bottom = Math.ceil((visibleRect.bottom + visibleRect.height) / majorSize) * majorSize;
+        const left = Math.floor((bounds.left - bounds.width) / majorSize) * majorSize;
+        const top = Math.floor((bounds.top - bounds.height) / majorSize) * majorSize;
+        const right = Math.ceil((bounds.right + bounds.width) / majorSize) * majorSize;
+        const bottom = Math.ceil((bounds.bottom + bounds.height) / majorSize) * majorSize;
 
         this.lastDrawnBounds.x = left;
         this.lastDrawnBounds.y = top;
@@ -89,7 +64,7 @@ export class Grid extends Container {
         const minorSize = 100;
         const majorSize = 1000;
 
-        // Draw Minor Lines (drawn first so they are under major lines if needed, though they don't overlap here)
+        // Draw Minor Lines
         for (let x = left; x <= right; x += minorSize) {
             if (x % majorSize !== 0) {
                 this.graphics.moveTo(x, top).lineTo(x, bottom);
@@ -122,7 +97,6 @@ export class Grid extends Container {
         });
 
         // Draw Origin Dot
-        // Note: Origin is at world (0,0). Constant.
         this.graphics.circle(0, 0, 4).fill({ color: 0xffffff });
     }
 }
