@@ -89,8 +89,10 @@ export class CanvasManager {
     }
 
     private onWheel(e: FederatedWheelEvent) {
-        // Logarithmic zoom: change in zoomLevel is linear with wheel rotation
-        // zoomScale = ZOOM_BASE ^ zoomLevel
+        // Get the mouse position in world coordinates before zoom
+        const worldPos = this.contentContainer.toLocal(e.global);
+
+        // Update zoom level
         const delta = -e.deltaY * this.ZOOM_SENSITIVITY;
         this.zoomLevel += delta;
 
@@ -99,10 +101,12 @@ export class CanvasManager {
 
         const newScale = Math.pow(this.ZOOM_BASE, this.zoomLevel);
 
-        // Apply the new scale. 
-        // We do NOT modify this.contentContainer.x/y here to satisfy the requirement
-        // "The canvasContainer should never move".
+        // Apply new scale
         this.contentContainer.scale.set(newScale);
+
+        // Adjust position so the mouse cursor stays over the same world position
+        this.contentContainer.x = e.global.x - worldPos.x * newScale;
+        this.contentContainer.y = e.global.y - worldPos.y * newScale;
 
         this.grid.update();
     }
