@@ -20,6 +20,7 @@ export class EditorNode extends DOMContainer {
         this.filePath = file;
         this.isRenderGroup = true;
         this.cullable = true;
+        this.cullableChildren = true;
 
         // Create DOM element for this node
         this.element = document.createElement('div');
@@ -28,16 +29,16 @@ export class EditorNode extends DOMContainer {
         this.element.style.width = `${this.width_}px`;
         this.element.style.height = `${this.height_}px`;
         this.element.style.backgroundColor = '#252526';
+        this.element.style.border = `${this.borderThickness}px solid #3c3c3c`;
         this.element.style.overflow = 'hidden';
 
         // Title Bar
         this.titleBar = document.createElement('div');
         this.titleBar.style.position = 'absolute';
-        this.titleBar.style.top = `${this.borderThickness}px`;
-        this.titleBar.style.left = `${this.borderThickness}px`;
-        this.titleBar.style.width = `${this.width_ - this.borderThickness * 2}px`;
+        this.titleBar.style.width = `${this.width_}px`;
         this.titleBar.style.height = `${this.titleHeight}px`;
         this.titleBar.style.backgroundColor = '#3c3c3c';
+        this.titleBar.style.lineHeight = `${this.titleHeight}px`;
         this.titleBar.style.cursor = 'move';
 
         // Title Text
@@ -52,8 +53,7 @@ export class EditorNode extends DOMContainer {
             element: this.titleBar,
             interactive: true
         });
-        //this.element.appendChild(this.titleBar);
-        this.addChild(this.titleBarDOMContainer);
+        this.element.appendChild(this.titleBar);
 
         // Setup Dragging
         this.titleBarDOMContainer.on('pointerdown', this.onDragStart.bind(this));
@@ -65,17 +65,15 @@ export class EditorNode extends DOMContainer {
         this.editorDiv = document.createElement('div');
         this.editorDiv.style.position = 'absolute';
         this.editorDiv.style.top = `${this.titleHeight}px`;
-        this.editorDiv.style.left = `${this.borderThickness}px`;
-        this.editorDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
-        this.editorDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2}px`;
+        this.editorDiv.style.width = `${this.width_}px`;
+        this.editorDiv.style.height = `${this.height_ - this.titleHeight}px`;
         this.editorDiv.style.overflow = 'hidden'; // Monaco handles scrolling
         this.editorDiv.style.pointerEvents = 'auto'; // Allow interaction
         this.editorDOMContainer = new DOMContainer({
             element: this.editorDiv,
             interactive: true
         });
-        //this.element.appendChild(this.editorDiv);
-        this.addChild(this.editorDOMContainer);
+        this.element.appendChild(this.editorDiv);
 
         this.editorInstance = monaco.editor.create(this.editorDiv, {
             value: content,

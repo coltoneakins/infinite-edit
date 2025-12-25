@@ -9,6 +9,9 @@ export class CanvasManager {
     private contentContainer: Container;
     private viewport: Viewport;
     private grid: Grid;
+    private zoomLevel: number = 0;
+    private readonly ZOOM_SENSITIVITY: number = 0.004;
+    private readonly ZOOM_BASE: number = 1.1;
     private isDragging: boolean = false;
     private lastPos: { x: number; y: number } | null = null;
 
@@ -37,6 +40,9 @@ export class CanvasManager {
         this.stage.on('pointerupoutside', this.onPointerUp.bind(this));
         this.stage.on('pointermove', this.onPointerMove.bind(this));
         this.stage.on('wheel', this.onWheel.bind(this));
+
+        // Initialize zoomLevel based on initial scale
+        this.zoomLevel = Math.log(this.contentContainer.scale.x) / Math.log(this.ZOOM_BASE);
     }
 
     public onResize() {
@@ -83,19 +89,22 @@ export class CanvasManager {
     }
 
     private onWheel(e: FederatedWheelEvent) {
-        console.log('CanvasManager: onWheel');
-        const wheelEvent = e.nativeEvent as WheelEvent;
-        const zoomFactor = 1;
-        const direction = wheelEvent.deltaY > 0 ? 1 / zoomFactor : zoomFactor;
+        // Logarithmic zoom: change in zoomLevel is linear with wheel rotation
+        // zoomScale = ZOOM_BASE ^ zoomLevel
+        const delta = -e.deltaY * this.ZOOM_SENSITIVITY;
+        this.zoomLevel += delta;
 
-        const localPos = this.contentContainer.toLocal({ x: e.global.x, y: e.global.y });
+        // Clamp zoom level to reasonable bounds
+        this.zoomLevel = Math.max(-30, Math.min(this.zoomLevel, 10));
 
-        this.contentContainer.scale.x *= direction;
-        this.contentContainer.scale.y *= direction;
+        const newScale = Math.pow(this.ZOOM_BASE, this.zoomLevel);
 
-        const newGlobalPos = this.contentContainer.toGlobal(localPos);
-        this.contentContainer.x += e.global.x - newGlobalPos.x;
-        this.contentContainer.y += e.global.y - newGlobalPos.y;
+        // Apply the new scale. 
+        // We do NOT modify this.contentContainer.x/y here to satisfy the requirement
+        // "The canvasContainer should never move".
+        this.contentContainer.scale.set(newScale);
+
         this.grid.update();
     }
+
 }
