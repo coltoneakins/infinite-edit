@@ -2,31 +2,32 @@
 
 'use strict';
 
+const webpack = require('webpack');
 const path = require('path');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 /** @type WebpackConfig */
 const extensionConfig = {
-  target: 'node', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
-  mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
-
-  entry: './src/backend/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
+  target: 'node',
+  mode: isDevelopment ? 'development' : 'production',
+  entry: './src/backend/extension.ts',
   output: {
-    // the bundle is stored in the 'dist' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/
     path: path.resolve(__dirname, 'dist'),
     filename: 'extension.js',
-    libraryTarget: 'commonjs2'
+    libraryTarget: 'commonjs'
   },
   externals: {
-    vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
-    // modules added here also need to be added in the .vscodeignore file
+    vscode: 'commonjs vscode',
+    '@hediet/node-reload': 'commonjs @hediet/node-reload',
+    '@hediet/node-reload/node': 'commonjs @hediet/node-reload/node'
   },
+
   resolve: {
-    // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
     extensions: ['.ts', '.js']
   },
   module: {
@@ -36,24 +37,32 @@ const extensionConfig = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader'
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true
+            }
           }
         ]
       }
     ]
   },
-  devtool: 'nosources-source-map',
-  infrastructureLogging: {
-    level: "log", // enables logging required for problem matchers
-  },
+  devtool: isDevelopment ? 'eval-source-map' : 'source-map',
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+    })
+  ]
 };
+
+
 const webviewConfig = {
   target: 'web',
-  mode: 'none',
+  mode: isDevelopment ? 'development' : 'production',
   entry: './src/webview/main.ts',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'webview.js',
+    publicPath: isDevelopment ? 'http://localhost:3000/' : undefined,
     libraryTarget: 'module'
   },
   experiments: {
@@ -69,7 +78,10 @@ const webviewConfig = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader'
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true
+            }
           }
         ]
       },
@@ -79,15 +91,26 @@ const webviewConfig = {
       }
     ]
   },
-  devtool: 'nosources-source-map',
-  infrastructureLogging: {
-    level: "log",
-  },
+  devtool: isDevelopment ? 'eval-source-map' : 'source-map',
   plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+    }),
     new MonacoWebpackPlugin({
       languages: ['javascript', 'typescript', 'json', 'css', 'html']
     })
-  ]
+  ],
+  devServer: {
+    port: 3000,
+    hot: true,
+    allowedHosts: 'all',
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+    },
+    client: {
+      overlay: true,
+    }
+  }
 };
 
 module.exports = [extensionConfig, webviewConfig];

@@ -51,25 +51,36 @@ export class InfiniteEditPanel {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        const devServerUrl = 'http://localhost:3000';
+
         // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js'));
+        const scriptUri = isDevelopment
+            ? `${devServerUrl}/webview.js`
+            : webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js'));
 
         // Monaco workers
-        const editorWorkerUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'editor.worker.js'));
-        const jsonWorkerUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'json.worker.js'));
-        const cssWorkerUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'css.worker.js'));
-        const htmlWorkerUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'html.worker.js'));
-        const tsWorkerUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'ts.worker.js'));
+        const getWorkerUri = (fileName: string) => isDevelopment
+            ? `${devServerUrl}/${fileName}`
+            : webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', fileName)).toString();
+
+        const editorWorkerUri = getWorkerUri('editor.worker.js');
+        const jsonWorkerUri = getWorkerUri('json.worker.js');
+        const cssWorkerUri = getWorkerUri('css.worker.js');
+        const htmlWorkerUri = getWorkerUri('html.worker.js');
+        const tsWorkerUri = getWorkerUri('ts.worker.js');
 
         // SECURITY: Use a nonce to only allow scripts from this extension to be run.
         const nonce = this._getNonce();
         // Monaco Editor requires 'unsafe-inline' for dynamic styles, data: for fonts, and blob: for workers
+        // In development, we also need to allow the dev server
         const cspSource = `default-src 'none'; 
-            script-src 'nonce-${nonce}' 'unsafe-eval' ${webview.cspSource}; 
-            style-src ${webview.cspSource} 'unsafe-inline'; 
-            img-src ${webview.cspSource} data:; 
-            font-src ${webview.cspSource} data:;
-            worker-src blob:;`.replace(/\s+/g, ' ').trim();
+            script-src 'nonce-${nonce}' 'unsafe-eval' ${webview.cspSource} ${isDevelopment ? devServerUrl : ''}; 
+            style-src ${webview.cspSource} 'unsafe-inline' ${isDevelopment ? devServerUrl : ''}; 
+            img-src ${webview.cspSource} data: ${isDevelopment ? devServerUrl : ''}; 
+            font-src ${webview.cspSource} data: ${isDevelopment ? devServerUrl : ''};
+            connect-src ${isDevelopment ? `${devServerUrl} ws://${devServerUrl.replace('http://', '')}` : ''};
+            worker-src blob: ${isDevelopment ? devServerUrl : ''};`.replace(/\s+/g, ' ').trim();
 
         return `<!DOCTYPE html>
 			<html lang="en">
@@ -87,7 +98,6 @@ export class InfiniteEditPanel {
 			    <body>
 			    <div id="canvas-container"></div>
                     <script nonce="${nonce}">
-                        <!-- 
                         window.MONACO_WORKERS = {
                             editor: "${editorWorkerUri}",
                             json: "${jsonWorkerUri}",
@@ -100,6 +110,7 @@ export class InfiniteEditPanel {
 			    </body>
 			</html>`;
     }
+
 
     public static createOrShow(extensionUri: vscode.Uri) {
         const column = vscode.window.activeTextEditor

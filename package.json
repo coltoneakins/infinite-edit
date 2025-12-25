@@ -49,8 +49,10 @@
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
+    "watch": "NODE_ENV=development webpack --watch",
+    "serve-webview": "NODE_ENV=development webpack serve",
+    "dev": "concurrently \"npm run watch\" \"npm run serve-webview\"",
+    "package": "NODE_ENV=production webpack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -58,17 +60,21 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@hediet/node-reload": "^0.10.0",
+    "@hediet/std": "^0.6.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/vscode": "^1.106.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3",
     "webpack": "^5.102.1",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
   },
   "dependencies": {
     "css-loader": "^7.1.2",
