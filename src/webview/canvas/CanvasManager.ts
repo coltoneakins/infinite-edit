@@ -85,7 +85,7 @@ export class CanvasManager {
     private onWheel(e: FederatedWheelEvent) {
         console.log('CanvasManager: onWheel');
         const wheelEvent = e.nativeEvent as WheelEvent;
-        const zoomFactor = 1.1;
+        const zoomFactor = 1;
         const direction = wheelEvent.deltaY > 0 ? 1 / zoomFactor : zoomFactor;
 
         const localPos = this.contentContainer.toLocal({ x: e.global.x, y: e.global.y });
