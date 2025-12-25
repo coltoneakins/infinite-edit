@@ -36,7 +36,7 @@ export class Grid extends Container {
             bounds.bottom <= this.lastDrawnBounds.bottom - marginY
         );
 
-        if (!scaleChanged && isInside && this.lastScale !== -1) {
+        if (!scaleChanged && isInside && currentScale !== this.lastScale) {
             return;
         }
 
@@ -59,6 +59,7 @@ export class Grid extends Container {
     }
 
     private redraw(left: number, top: number, right: number, bottom: number) {
+        // Clear previous lines
         this.graphics.clear();
 
         const minorSize = 100;

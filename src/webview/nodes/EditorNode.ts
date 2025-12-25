@@ -3,6 +3,7 @@ import * as monaco from 'monaco-editor';
 
 export class EditorNode extends Container {
     private background: Graphics;
+    private titleBarContainer: Container;
     private titleBar: Graphics;
     private titleBarMask: Graphics;
     private titleText: HTMLText;
@@ -11,26 +12,39 @@ export class EditorNode extends Container {
     private isDragging: boolean = false;
     private dragOffset: { x: number; y: number } | null = null;
     private width_: number = 400;
-    private height_: number = 300;
+    private height_: number = 600;
     private titleHeight: number = 30;
     private filePath: string;
 
     constructor(file: string, content: string) {
         super();
         this.filePath = file;
+        this.isRenderGroup = true;
+        this.cullable = true;
 
         // Background
         this.background = new Graphics();
+        this.background.rect(0, 0, this.width_, this.height_);
+        this.background.fill(0x252526); // VS Code editor background
+        this.background.stroke({ width: 5, color: 0x454545 });
         this.addChild(this.background);
 
         // Title Bar
+        this.titleBarContainer = new Container();
         this.titleBar = new Graphics();
         this.titleBar.eventMode = 'static';
         this.titleBar.cursor = 'move';
+        this.titleBar.clear();
+        this.titleBar.rect(0, 0, this.width_, this.titleHeight);
+        this.titleBar.fill(0x3c3c3c);
+        // Explicitly set hitArea to ensure it catches events
+        this.titleBar.hitArea = new Rectangle(0, 0, this.width_, this.titleHeight);
         this.addChild(this.titleBar);
 
         // Create a mask for the title bar
         this.titleBarMask = new Graphics();
+        this.titleBarMask.rect(0, 0, this.width_, this.titleHeight);
+        this.titleBarMask.fill(0xffffff); // Fill is required for mask to work
         this.titleBar.addChild(this.titleBarMask);
 
         // Title Text
@@ -58,7 +72,7 @@ export class EditorNode extends Container {
         this.titleText.mask = this.titleBarMask;
 
         // Draw initial graphics
-        this.draw();
+        this.updateTitleTextAlignment();
 
         // Setup Dragging
         this.titleBar.on('pointerdown', this.onDragStart.bind(this));
@@ -88,7 +102,7 @@ export class EditorNode extends Container {
             this.save();
         });
 
-        // Sync DOM position with Pixi Container
+        // Sync editor DOM position with Pixi Container
         const updatePosition = () => {
             if (this.destroyed) {
                 return;
@@ -99,24 +113,7 @@ export class EditorNode extends Container {
         updatePosition();
     }
 
-    private draw() {
-        this.background.clear();
-        // Use rounded rect for a more modern feel
-        this.background.rect(0, 0, this.width_, this.height_);
-        this.background.fill(0x252526); // VS Code editor background
-        this.background.stroke({ width: 5, color: 0x454545 });
-
-        this.titleBar.clear();
-        this.titleBar.rect(0, 0, this.width_, this.titleHeight);
-        this.titleBar.fill(0x3c3c3c);
-        // Explicitly set hitArea to ensure it catches events
-        this.titleBar.hitArea = new Rectangle(0, 0, this.width_, this.titleHeight);
-
-        // Update mask
-        this.titleBarMask.clear();
-        this.titleBarMask.rect(0, 0, this.width_, this.titleHeight);
-        this.titleBarMask.fill(0xffffff); // Fill is required for mask to work
-
+    private updateTitleTextAlignment() {
         // Update Text Alignment
         const padding = 10;
         const availableWidth = this.width_ - (padding * 2);
@@ -131,19 +128,24 @@ export class EditorNode extends Container {
         this.titleText.y = (this.titleHeight - this.titleText.height) / 2;
     }
 
+    private setAlpha(alpha: number) {
+        this.alpha = alpha;
+        this.titleBarContainer.alpha = alpha;
+        this.background.alpha = alpha;
+        this.editorContainer.style.opacity = alpha.toString();
+    }
+
     private onDragStart(e: FederatedPointerEvent) {
-        console.log('EditorNode: onDragStart');
         this.isDragging = true;
         const localPos = this.toLocal(e.global);
         this.dragOffset = { x: localPos.x, y: localPos.y };
-        this.alpha = 0.8;
+        this.setAlpha(0.5);
     }
 
     private onDragEnd() {
-        console.log('EditorNode: onDragEnd');
         this.isDragging = false;
         this.dragOffset = null;
-        this.alpha = 1;
+        this.setAlpha(1);
     }
 
     private onDragMove(e: FederatedPointerEvent) {
