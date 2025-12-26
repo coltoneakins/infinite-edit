@@ -45,5 +45,6 @@ import MessageClient from './core/MessageClient';
     // Initialize message client
     // This is where the frontend handles message passing
     const messageClient = new MessageClient(app.appInstance, app.canvasManagerInstance);
+    app.canvasManagerInstance.setMessageClient(messageClient);
 
 })();

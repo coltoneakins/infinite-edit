@@ -2,6 +2,8 @@ import { Application, Container, Graphics, FederatedPointerEvent, FederatedWheel
 import { EditorNode } from '../nodes/EditorNode';
 import { Grid } from './Grid';
 import { Viewport } from './Viewport';
+import { Toolbar } from '../ui/Toolbar';
+import { MessageClient } from '../core/MessageClient';
 
 export class CanvasManager {
     private app: Application;
@@ -14,6 +16,9 @@ export class CanvasManager {
     private readonly ZOOM_BASE: number = 1.1;
     private isDragging: boolean = false;
     private lastPos: { x: number; y: number } | null = null;
+
+    private messageClient: MessageClient | null = null;
+    private toolbar: Toolbar | null = null;
 
     constructor(app: Application) {
         this.app = app;
@@ -45,9 +50,31 @@ export class CanvasManager {
         this.zoomLevel = Math.log(this.contentContainer.scale.x) / Math.log(this.ZOOM_BASE);
     }
 
+    public setMessageClient(client: MessageClient) {
+        this.messageClient = client;
+        this.createToolbar();
+    }
+
+    private createToolbar() {
+        if (!this.messageClient) {
+            return;
+        }
+        this.toolbar = new Toolbar(this.messageClient);
+        this.stage.addChild(this.toolbar);
+        this.updateToolbarPosition();
+    }
+
+    private updateToolbarPosition() {
+        if (this.toolbar) {
+            this.toolbar.x = (this.app.screen.width - this.toolbar.width_) / 2;
+            this.toolbar.y = 20;
+        }
+    }
+
     public onResize() {
         this.stage.hitArea = this.app.screen;
         this.grid.update();
+        this.updateToolbarPosition();
     }
 
     public addEditor(file: string, content: string) {

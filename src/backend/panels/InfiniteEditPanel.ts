@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { MessageBus } from '../services/MessageBus';
 
 export class InfiniteEditPanel {
     public static currentPanel: InfiniteEditPanel | undefined;
@@ -8,9 +9,12 @@ export class InfiniteEditPanel {
     private _isReady: boolean = false;
     private _pendingMessages: any[] = [];
 
+    private readonly _messageBus: MessageBus = new MessageBus();
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this._panel = panel;
         this._extensionUri = extensionUri;
+        this._messageBus.setWebview(this._panel.webview);
 
         // Set the webview's initial html content
         this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
@@ -19,35 +23,70 @@ export class InfiniteEditPanel {
         // This happens when the user closes the panel or when the panel is closed programmatically
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
+        // Register Message Handlers
+        this.registerMessageHandlers();
+
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
-            async message => {
-                switch (message.command) {
-                    case 'alert':
-                        vscode.window.showErrorMessage(message.text);
-                        return;
-                    case 'ready':
-                        this._isReady = true;
-                        this._pendingMessages.forEach(msg => this._panel.webview.postMessage(msg));
-                        this._pendingMessages = [];
-                        return;
-                    case 'saveFile':
-                        // Save the file to disk
-                        // We need the URI. For now, let's assume the file path is the URI fsPath
-                        // In a real app, we should pass the URI string.
-                        try {
-                            const uri = vscode.Uri.file(message.file);
-                            await vscode.workspace.fs.writeFile(uri, Buffer.from(message.content));
-                            vscode.window.showInformationMessage(`Saved ${message.file}`);
-                        } catch (e) {
-                            vscode.window.showErrorMessage(`Failed to save ${message.file}: ${e}`);
-                        }
-                        return;
-                }
-            },
+            message => this._messageBus.handleMessage(message),
             null,
             this._disposables
         );
+    }
+
+    private registerMessageHandlers() {
+        this._messageBus.register('alert', (message) => {
+            vscode.window.showErrorMessage(message.text);
+        });
+
+        this._messageBus.register('ready', () => {
+            this._isReady = true;
+            this._pendingMessages.forEach(msg => this._panel.webview.postMessage(msg));
+            this._pendingMessages = [];
+        });
+
+        this._messageBus.register('saveFile', async (message) => {
+            try {
+                const uri = vscode.Uri.file(message.file);
+                await vscode.workspace.fs.writeFile(uri, Buffer.from(message.content));
+                vscode.window.showInformationMessage(`Saved ${message.file}`);
+            } catch (e) {
+                vscode.window.showErrorMessage(`Failed to save ${message.file}: ${e}`);
+            }
+        });
+
+        this._messageBus.register('findFiles', async (message) => {
+            const query = message.query;
+            if (!query) { return []; }
+
+            // Search for files matching the query
+            // We use a glob pattern that matches the query anywhere in the path
+            const pattern = `**/*${query.split('').join('*')}*`; // poor man's fuzzy search, or just `**/*${query}*`
+            // Let's stick to a simpler inclusion for now to avoid performance issues with massive expansion
+            // const glob = `**/*${query}*`; 
+            // VS Code "Quick Open" is sophisticated. Let's do a simple glob search for now 
+            // and maybe filter manually if needed.
+            // Actually, findFiles takes (include, exclude, maxResults).
+            // Let's use `**/${query}*` matches filenames starting with query in any dir? 
+            // or `**/*${query}*` for substring.
+
+            const results = await vscode.workspace.findFiles(`**/*${query}*`, '**/node_modules/**', 20);
+            return results.map(uri => ({
+                label: uri.path.split('/').pop(),
+                detail: vscode.workspace.asRelativePath(uri),
+                path: uri.fsPath
+            }));
+        });
+
+        this._messageBus.register('requestOpenFile', async (message) => {
+            try {
+                const uri = vscode.Uri.file(message.path);
+                const document = await vscode.workspace.openTextDocument(uri);
+                this.openFile(document);
+            } catch (e) {
+                vscode.window.showErrorMessage(`Failed to open file: ${message.path}`);
+            }
+        });
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
