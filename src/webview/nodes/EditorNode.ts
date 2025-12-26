@@ -16,6 +16,7 @@ export class EditorNode extends Container {
     private titleHeight: number = 30;
     private filePath: string;
     private borderThickness: number = 5;
+    private borderHitAreaBuffer: number = 10;
     private border: Graphics;
     private isResizing: boolean = false;
     private resizeDirection: string | null = null;
@@ -39,7 +40,7 @@ export class EditorNode extends Container {
                 join: 'round',
                 alignment: 0
             });
-        this.border.hitArea = new Rectangle(-this.borderThickness, -this.borderThickness, this.width_ + this.borderThickness * 2, this.height_ + this.borderThickness * 2);
+        this.border.hitArea = new Rectangle(-this.borderThickness - this.borderHitAreaBuffer, -this.borderThickness - this.borderHitAreaBuffer, this.width_ + this.borderThickness * 2 + this.borderHitAreaBuffer * 2, this.height_ + this.borderThickness * 2 + this.borderHitAreaBuffer * 2);
         this.border.eventMode = 'static';
         this.addChild(this.border);
 
@@ -331,7 +332,7 @@ export class EditorNode extends Container {
                 join: 'round',
                 alignment: 0
             });
-        this.border.hitArea = new Rectangle(-this.borderThickness, -this.borderThickness, this.width_ + this.borderThickness * 2, this.height_ + this.borderThickness * 2);
+        this.border.hitArea = new Rectangle(-this.borderThickness - this.borderHitAreaBuffer, -this.borderThickness - this.borderHitAreaBuffer, this.width_ + this.borderThickness * 2 + this.borderHitAreaBuffer * 2, this.height_ + this.borderThickness * 2 + this.borderHitAreaBuffer * 2);
 
         // Update Title Bar
         this.titleBar.style.width = `${this.width_}px`;
