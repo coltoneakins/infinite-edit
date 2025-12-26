@@ -1,5 +1,6 @@
 import { Container, DOMContainer, Graphics, FederatedPointerEvent, HTMLText, HTMLTextStyle, Rectangle } from 'pixi.js';
 import * as monaco from 'monaco-editor';
+import { LanguageManager } from '../core/LanguageManager';
 
 export class EditorNode extends Container {
     private titleBarDOMContainer: DOMContainer;
@@ -131,10 +132,11 @@ export class EditorNode extends Container {
         this.addChild(this.editorDOMContainer);
         this.setChildIndex(this.editorDOMContainer, 2); // allows dialog to be above editor, drawn over editor node border
 
+
         // Setup Monaco Editor
         this.editorInstance = monaco.editor.create(this.editorDiv, {
             value: content,
-            language: 'javascript', // TODO: Detect language from file extension
+            language: LanguageManager.prepareLanguageForFile(this.filePath),
             theme: 'vs-dark',
             automaticLayout: true,
             minimap: { enabled: false }

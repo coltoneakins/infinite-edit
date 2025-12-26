@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { MessageBus } from '../services/MessageBus';
+import { MONACO_WORKER_FILES } from '../../shared/MonacoConfig';
 
 export class InfiniteEditPanel {
     public static currentPanel: InfiniteEditPanel | undefined;
@@ -89,25 +90,23 @@ export class InfiniteEditPanel {
         });
     }
 
+
     private _getHtmlForWebview(webview: vscode.Webview) {
         const isDevelopment = process.env.NODE_ENV === 'development';
         const devServerUrl = 'http://localhost:3000';
 
-        // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
-        const scriptUri = isDevelopment
-            ? `${devServerUrl}/webview.js`
-            : webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js'));
-
-        // Monaco workers
-        const getWorkerUri = (fileName: string) => isDevelopment
+        // Helper to get local path to a script or worker
+        const getResourceUri = (fileName: string) => isDevelopment
             ? `${devServerUrl}/${fileName}`
             : webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', fileName)).toString();
 
-        const editorWorkerUri = getWorkerUri('editor.worker.js');
-        const jsonWorkerUri = getWorkerUri('json.worker.js');
-        const cssWorkerUri = getWorkerUri('css.worker.js');
-        const htmlWorkerUri = getWorkerUri('html.worker.js');
-        const tsWorkerUri = getWorkerUri('ts.worker.js');
+        const scriptUri = getResourceUri('webview.js');
+
+        // Generate worker URIs from shared config
+        const workerUris: Record<string, string> = {};
+        for (const [key, fileName] of Object.entries(MONACO_WORKER_FILES)) {
+            workerUris[key] = getResourceUri(fileName);
+        }
 
         // SECURITY: Use a nonce to only allow scripts from this extension to be run.
         const nonce = this._getNonce();
@@ -138,13 +137,7 @@ export class InfiniteEditPanel {
 			    <body>
 			    <div id="canvas-container"></div>
                     <script nonce="${nonce}">
-                        window.MONACO_WORKERS = {
-                            editor: "${editorWorkerUri}",
-                            json: "${jsonWorkerUri}",
-                            css: "${cssWorkerUri}",
-                            html: "${htmlWorkerUri}",
-                            typescript: "${tsWorkerUri}"
-                        };
+                        window.MONACO_WORKERS = ${JSON.stringify(workerUris)};
                     </script>
 				    <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
 			    </body>
