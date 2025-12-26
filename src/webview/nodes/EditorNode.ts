@@ -3,6 +3,7 @@ import * as monaco from 'monaco-editor';
 
 export class EditorNode extends Container {
     private titleBarDOMContainer: DOMContainer;
+    private titleBarTextColor: string = '#ffffff';
     private titleBar: HTMLDivElement;
     private titleBarProxy: Graphics;
     private editorDOMContainer: DOMContainer;
@@ -54,6 +55,7 @@ export class EditorNode extends Container {
         this.titleBar.style.overflow = 'hidden';
         this.titleBar.style.whiteSpace = 'nowrap';
         this.titleBar.style.textOverflow = 'ellipsis';
+        this.titleBar.style.color = this.titleBarTextColor;
         // TODO: This is another bug with Pixi.js where Pixi.js doesn't respect pointerEvents set on DOM elements.
         // This is a workaround. It is being set via CSS in the webview HTML.
         this.titleBar.className = 'editor-title-bar';
@@ -67,6 +69,8 @@ export class EditorNode extends Container {
             : fileName;
 
         this.titleBar.innerHTML = titleHtml;
+
+        // Set up title bar DOM container
         this.titleBarDOMContainer = new DOMContainer({
             element: this.titleBar,
         });
@@ -83,6 +87,7 @@ export class EditorNode extends Container {
         this.setChildIndex(this.titleBarDOMContainer, 0);
 
         // Create a proxy object which overlays the title bar
+        // Used for firing Pixi events as opposed to native DOM events
         this.titleBarProxy = new Graphics();
         this.titleBarProxy.rect(0, 0, this.width_, this.titleHeight);
         this.titleBarProxy.eventMode = 'static';
@@ -92,7 +97,7 @@ export class EditorNode extends Container {
         this.addChild(this.titleBarProxy);
         this.setChildIndex(this.titleBarProxy, 1);
 
-        // Add resizing
+        // Setup resizing
         this.border.on('pointermove', this.onBorderPointerMove, this);
         this.border.on('pointerdown', this.onBorderPointerDown, this);
         this.border.on('pointerup', this.onBorderPointerUp, this);
@@ -109,13 +114,13 @@ export class EditorNode extends Container {
         this.editorDiv = document.createElement('div');
         this.editorDiv.style.width = `${this.width_}px`;
         this.editorDiv.style.height = `${this.height_ - this.titleHeight}px`;
-        this.editorDiv.style.overflow = 'hidden'; // Monaco handles scrolling
         this.editorDiv.style.pointerEvents = 'auto'; // Re-enable for the editor itself
+
+        // Setup editor DOM container
         this.editorDOMContainer = new DOMContainer({
             element: this.editorDiv,
         });
         this.editorDOMContainer.eventMode = 'static';
-
         // Offset by title bar height
         this.editorDOMContainer.y = this.titleHeight;
         // TODO: Remove this once bug is fixed: https://github.com/pixijs/pixijs/issues/11690. And, once DOMContainer is no longer experimental.
@@ -123,7 +128,9 @@ export class EditorNode extends Container {
         // There is also a bug with how events fire on DOMContainer parents with DOMContainer as children.
         //this.element.appendChild(this.editorDOMContainer.element);
         this.addChild(this.editorDOMContainer);
+        this.setChildIndex(this.editorDOMContainer, 2); // allows dialog to be above editor, drawn over editor node border
 
+        // Setup Monaco Editor
         this.editorInstance = monaco.editor.create(this.editorDiv, {
             value: content,
             language: 'javascript', // TODO: Detect language from file extension
