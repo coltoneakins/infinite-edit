@@ -15,7 +15,7 @@ class App {
         this.app = new Application();
         await this.app.init({
             resizeTo: window,
-            backgroundColor: 0x0b073d,
+            backgroundColor: 0x0d162b,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
         });

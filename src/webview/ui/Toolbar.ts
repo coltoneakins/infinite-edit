@@ -16,6 +16,8 @@ export class Toolbar extends Container {
     }
 
     private init() {
+        this.zIndex = 100; // Ensure it stays on top for Pixi containers and graphics
+
         this.element = document.createElement('div');
         this.element.style.width = `${this.width_}px`;
         // Glassmorphism and premium aesthetics
@@ -24,8 +26,9 @@ export class Toolbar extends Container {
         (this.element.style as any).webkitBackdropFilter = 'blur(10px)';
         this.element.style.padding = '6px';
         this.element.style.borderRadius = '12px';
-        this.element.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.4)';
+        this.element.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.4)';
         this.element.style.display = 'flex';
+        this.element.style.zIndex = '100'; // Ensure it stays on top for native DOM elements
         this.element.style.flexDirection = 'column';
         this.element.style.border = '1px solid rgba(255, 255, 255, 0.1)';
 

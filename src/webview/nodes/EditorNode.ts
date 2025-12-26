@@ -51,7 +51,7 @@ export class EditorNode extends Container {
         this.titleBar = document.createElement('div');
         this.titleBar.style.width = `${this.width_}px`;
         this.titleBar.style.height = `${this.titleHeight}px`;
-        this.titleBar.style.backgroundColor = '#3c3c3c';
+        this.titleBar.style.backgroundColor = 'transparent';
         this.titleBar.style.lineHeight = `${this.titleHeight}px`;
         this.titleBar.style.overflow = 'hidden';
         this.titleBar.style.whiteSpace = 'nowrap';
