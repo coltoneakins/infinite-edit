@@ -1,6 +1,7 @@
 import { Container, DOMContainer, Graphics, FederatedPointerEvent, HTMLText, HTMLTextStyle, Rectangle } from 'pixi.js';
 import * as monaco from 'monaco-editor';
 import { LanguageManager } from '../core/LanguageManager';
+import { MessageClient } from '../core/MessageClient';
 
 export class EditorNode extends Container {
     private titleBarDOMContainer: DOMContainer;
@@ -23,9 +24,11 @@ export class EditorNode extends Container {
     private resizeDirection: string | null = null;
     private startResizeBounds: { width: number; height: number; x: number; y: number } | null = null;
     private startMousePosition: { x: number; y: number } | null = null;
+    private messageClient: MessageClient;
 
-    constructor(file: string, content: string) {
+    constructor(file: string, content: string, messageClient: MessageClient) {
         super();
+        this.messageClient = messageClient;
         this.filePath = file;
         this.isRenderGroup = true;
         this.cullable = true;
@@ -362,12 +365,10 @@ export class EditorNode extends Container {
 
     private save() {
         const content = this.editorInstance.getValue();
-        window.dispatchEvent(new CustomEvent('save-file', {
-            detail: {
-                file: this.filePath,
-                content: content
-            }
-        }));
+        this.messageClient.send('saveFile', {
+            file: this.filePath,
+            content: content
+        });
     }
 
     public override destroy(options?: any) {

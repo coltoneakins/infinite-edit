@@ -32,7 +32,9 @@ import { LANGUAGE_WORKER_MAP } from '../shared/MonacoConfig';
 
     // Initialize message client
     // This is where the frontend handles message passing
-    const messageClient = new MessageClient(app.appInstance, app.canvasManagerInstance);
+    const messageClient = new MessageClient();
     app.canvasManagerInstance.setMessageClient(messageClient);
 
+    // Signal that we are ready to receive messages
+    messageClient.send('ready');
 })();

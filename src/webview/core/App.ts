@@ -28,6 +28,23 @@ class App {
         }
 
         this.canvasManager = new CanvasManager(this.app);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // Pixi automatically handles renderer resize due to 'resizeTo: window'
+            // but we need to notify the canvas manager to update its internal state
+            this.canvasManager.onResize();
+        });
+
+        // Handle messages from the extension
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.command) {
+                case 'openFile':
+                    this.canvasManager.addEditor(message.file, message.content);
+                    break;
+            }
+        });
     }
 
     get appInstance() {
