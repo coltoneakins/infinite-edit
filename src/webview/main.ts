@@ -30,11 +30,7 @@ import { LANGUAGE_WORKER_MAP } from '../shared/MonacoConfig';
     // Wait for the app to be fully initialized
     await app.ready;
 
-    // Initialize message client
-    // This is where the frontend handles message passing
-    const messageClient = new MessageClient();
-    app.canvasManagerInstance.setMessageClient(messageClient);
-
     // Signal that we are ready to receive messages
-    messageClient.send('ready');
+    app.messageClientInstance.send('ready');
+
 })();

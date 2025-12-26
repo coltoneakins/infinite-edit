@@ -20,7 +20,8 @@ export class CanvasManager {
     private messageClient: MessageClient | null = null;
     private toolbar: Toolbar | null = null;
 
-    constructor(app: Application) {
+    constructor(app: Application, messageClient: MessageClient) {
+        this.messageClient = messageClient;
         this.app = app;
         this.stage = app.stage;
 
@@ -36,6 +37,9 @@ export class CanvasManager {
         this.contentContainer.addChild(this.grid);
         this.grid.update();
 
+        // Initialize Toolbar
+        this.createToolbar();
+
         // Enable interactivity on the stage for panning
         this.stage.eventMode = 'static';
         this.stage.hitArea = this.app.screen;
@@ -50,16 +54,8 @@ export class CanvasManager {
         this.zoomLevel = Math.log(this.contentContainer.scale.x) / Math.log(this.ZOOM_BASE);
     }
 
-    public setMessageClient(client: MessageClient) {
-        this.messageClient = client;
-        this.createToolbar();
-    }
-
     private createToolbar() {
-        if (!this.messageClient) {
-            return;
-        }
-        this.toolbar = new Toolbar(this.messageClient);
+        this.toolbar = new Toolbar(this.messageClient!);
         this.stage.addChild(this.toolbar);
         this.updateToolbarPosition();
     }
@@ -78,7 +74,7 @@ export class CanvasManager {
     }
 
     public addEditor(file: string, content: string) {
-        const editor = new EditorNode(file, content);
+        const editor = new EditorNode(file, content, this.messageClient!);
         this.contentContainer.addChild(editor);
         editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
         editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;

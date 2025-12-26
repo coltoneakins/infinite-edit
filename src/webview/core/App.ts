@@ -1,10 +1,12 @@
 import { Application } from 'pixi.js';
 import { CanvasManager } from '../canvas/CanvasManager';
+import { MessageClient } from '../core/MessageClient';
 
 class App {
 
     private app!: Application;
     private canvasManager!: CanvasManager;
+    private messageClient!: MessageClient;
     public ready: Promise<void>;
 
     constructor() {
@@ -27,7 +29,11 @@ class App {
             document.body.appendChild(this.app.canvas);
         }
 
-        this.canvasManager = new CanvasManager(this.app);
+        // Initialize message client
+        // This is where the frontend handles message passing
+        this.messageClient = new MessageClient();
+
+        this.canvasManager = new CanvasManager(this.app, this.messageClient);
 
         // Handle window resize
         window.addEventListener('resize', () => {
@@ -53,6 +59,10 @@ class App {
 
     get canvasManagerInstance() {
         return this.canvasManager;
+    }
+
+    get messageClientInstance() {
+        return this.messageClient;
     }
 
 }
