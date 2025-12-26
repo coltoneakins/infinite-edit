@@ -149,6 +149,7 @@ export class EditorNode extends Container {
 
     private setAlpha(alpha: number) {
         this.alpha = alpha;
+        this.border.alpha = alpha;
         this.titleBarDOMContainer.alpha = alpha;
         this.editorDOMContainer.alpha = alpha;
     }
@@ -156,7 +157,9 @@ export class EditorNode extends Container {
     private onDragStart(e: FederatedPointerEvent) {
         this.isDragging = true;
         this.dragOffset = this.toLocal(e.global);
-        this.setAlpha(0.5);
+        this.setAlpha(0.7);
+        // Increase the hit area of the title bar proxy to make it easier to drag
+        this.titleBarProxy.hitArea = new Rectangle(0 - (this.width_ * 0.25), 0 - (this.height_ * 0.25), this.width_ + (this.width_ * 0.5), this.titleHeight + (this.height_ * 0.5));
         // Prevent event from bubbling to canvas (panning)
         e.stopPropagation();
     }
@@ -165,6 +168,8 @@ export class EditorNode extends Container {
         this.isDragging = false;
         this.dragOffset = null;
         this.setAlpha(1);
+        // Reset the hit area of the title bar proxy
+        this.titleBarProxy.hitArea = this.titleBarDOMContainer.hitArea;
     }
 
     private onDragMove(e: FederatedPointerEvent) {
@@ -325,7 +330,7 @@ export class EditorNode extends Container {
         // Update graphics
         this.border.clear();
         this.border.rect(0, 0, this.width_, this.height_)
-            .fill(0x000000)
+            .fill(0x3c3c3c)
             .stroke({
                 width: this.borderThickness,
                 color: 0x3c3c3c,
