@@ -173,6 +173,9 @@ export class InfiniteEditPanel {
         panel.iconPath = vscode.Uri.joinPath(extensionUri, 'assets', 'icon.png');
 
         InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri);
+
+        // Pin the panel by default
+        vscode.commands.executeCommand('workbench.action.pinEditor', panel);
     }
 
     public openFile(document: vscode.TextDocument) {
@@ -187,6 +190,9 @@ export class InfiniteEditPanel {
         } else {
             this._pendingMessages.push(message);
         }
+
+        // Reveal the panel if it's hidden
+        this._panel.reveal();
     }
 
     public dispose() {

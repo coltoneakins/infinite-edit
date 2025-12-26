@@ -1,5 +1,4 @@
 import App from './core/App';
-import MessageClient from './core/MessageClient';
 
 import { LANGUAGE_WORKER_MAP } from '../shared/MonacoConfig';
 
