@@ -93,6 +93,7 @@ export class InfiniteEditPanel {
 				    <style>
                         body { margin: 0; padding: 0; overflow: hidden; background-color: #1e1e1e; }
                         #canvas-container { width: 100vw; height: 100vh; }
+                        .editor-title-bar { pointer-events: none !important; }
 				    </style>
 			    </head>
 			    <body>
