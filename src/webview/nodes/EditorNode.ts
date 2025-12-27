@@ -296,6 +296,10 @@ export class EditorNode extends DOMContainer {
         }
     }
 
+    private setZIndex(z: number) {
+        this.zIndex = z;
+        this.wrapper.style.zIndex = z.toString();
+    }
 
     private save() {
         const content = this.monacoInstance.getValue();
