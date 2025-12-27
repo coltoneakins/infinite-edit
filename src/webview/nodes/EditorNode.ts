@@ -17,6 +17,12 @@ export class EditorNode extends DOMContainer {
     private messageClient: MessageClient;
     private isDragging: boolean = false;
     private dragOffset: { x: number; y: number } = { x: 0, y: 0 };
+    private isResizing: boolean = false;
+    private resizeDirection: string | null = null;
+    private startMousePosition: { x: number; y: number } | null = null;
+    private startResizeBounds: { x: number; y: number; width: number; height: number } | null = null;
+    private boundOnGlobalPointerMove = this.onGlobalPointerMove.bind(this);
+    private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
 
     constructor(file: string, content: string, messageClient: MessageClient) {
         super();
@@ -85,6 +91,13 @@ export class EditorNode extends DOMContainer {
         this.titleBarDiv.addEventListener('pointerup', this.onDragEnd.bind(this));
         this.titleBarDiv.addEventListener('pointermove', this.onDragMove.bind(this));
 
+        // Resize listeners on wrapper
+        this.wrapper.addEventListener('pointermove', this.onWrapperPointerMove.bind(this));
+        this.wrapper.addEventListener('pointerdown', this.onWrapperPointerDown.bind(this));
+        // Use window for move/up to catch events outside the wrapper
+        window.addEventListener('pointermove', this.boundOnGlobalPointerMove);
+        window.addEventListener('pointerup', this.boundOnGlobalPointerUp);
+
 
         // Add Save Command (Ctrl+S)
         this.monacoInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -116,7 +129,9 @@ export class EditorNode extends DOMContainer {
     }
 
     private onDragEnd(e: PointerEvent) {
-        if (!this.isDragging) return;
+        if (!this.isDragging) {
+            return;
+        }
 
         this.isDragging = false;
         this.titleBarDiv.releasePointerCapture(e.pointerId);
@@ -133,145 +148,153 @@ export class EditorNode extends DOMContainer {
         }
     }
 
-    //     const localPos = this.toLocal(e.global);
-    //     const direction = this.getResizeDirection(localPos.x, localPos.y);
+    private getResizeDirection(x: number, y: number): string | null {
+        const threshold = this.borderThickness + 5; // Slightly larger hit area for ease of use
+        const w = this.width_;
+        const h = this.height_;
 
-    //     if (direction) {
-    //         this.border.cursor = `${direction}-resize`;
-    //     } else {
-    //         this.border.cursor = 'default';
-    //     }
-    // }
+        let v = '';
+        let h_dir = '';
 
-    // private onBorderPointerDown(e: FederatedPointerEvent) {
-    //     if (e.button !== 0) {
-    //         return;
-    //     }
+        if (y < threshold) {
+            v = 'n';
+        } else if (y > h - threshold) {
+            v = 's';
+        }
 
-    //     const localPos = this.toLocal(e.global);
-    //     const direction = this.getResizeDirection(localPos.x, localPos.y);
+        if (x < threshold) {
+            h_dir = 'w';
+        } else if (x > w - threshold) {
+            h_dir = 'e';
+        }
 
-    //     if (direction) {
-    //         this.isResizing = true;
-    //         this.resizeDirection = direction;
-    //         this.startMousePosition = { x: e.global.x, y: e.global.y };
-    //         this.startResizeBounds = {
-    //             width: this.width_,
-    //             height: this.height_,
-    //             x: this.x,
-    //             y: this.y
-    //         };
-    //         e.stopPropagation();
-    //     }
-    // }
+        return (v || h_dir) ? v + h_dir : null;
+    }
 
-    // private onGlobalPointerMove(e: FederatedPointerEvent) {
-    //     if (!this.isResizing || !this.startResizeBounds || !this.startMousePosition || !this.resizeDirection || !this.parent) {
-    //         return;
-    //     }
+    private onWrapperPointerMove(e: PointerEvent) {
+        if (this.isResizing || this.isDragging) {
+            return;
+        }
 
-    //     const currentGlob = e.global;
-    //     // Calculate delta in parent space (assuming scaling is 1 for simplicity, or just use global delta)
-    //     // Since we are changing width/height which are local properties, but dragging affects x/y too (for left/top resize).
+        const rect = this.wrapper.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const direction = this.getResizeDirection(x, y);
 
-    //     // We calculate delta in global space, then transform to local magnitudes? 
-    //     // Or simpler: Transform start and current to parent space?
-    //     // Parent space is best for updating this.x/this.y
+        if (direction) {
+            this.wrapper.style.cursor = `${direction}-resize`;
+        } else {
+            this.wrapper.style.cursor = 'default';
+        }
+    }
 
-    //     // Actually, easiest is:
-    //     const currentLocalInParent = this.parent.toLocal(currentGlob); // Mouse in parent coords
-    //     const startLocalInParent = this.parent.toLocal(new DOMPoint(this.startMousePosition.x, this.startMousePosition.y));
+    private onWrapperPointerDown(e: PointerEvent) {
+        if (this.isDragging) {
+            return;
+        }
 
-    //     const dx = currentLocalInParent.x - startLocalInParent.x;
-    //     const dy = currentLocalInParent.y - startLocalInParent.y;
+        const rect = this.wrapper.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const direction = this.getResizeDirection(x, y);
 
-    //     let newX = this.startResizeBounds.x;
-    //     let newY = this.startResizeBounds.y;
-    //     let newW = this.startResizeBounds.width;
-    //     let newH = this.startResizeBounds.height;
+        if (direction) {
+            this.isResizing = true;
+            this.resizeDirection = direction;
+            this.startMousePosition = { x: e.clientX, y: e.clientY };
+            this.startResizeBounds = {
+                width: this.width_,
+                height: this.height_,
+                x: this.x,
+                y: this.y
+            };
+            this.wrapper.setPointerCapture(e.pointerId);
 
-    //     const minW = 100;
-    //     const minH = 200;
+            // Bring to front
+            if (this.parent) {
+                this.parent.addChild(this);
+            }
 
-    //     if (this.resizeDirection.includes('e')) {
-    //         newW = Math.max(minW, this.startResizeBounds.width + dx);
-    //     }
-    //     if (this.resizeDirection.includes('w')) {
-    //         // Dragging left: width increases if dx is negative
-    //         // x shifts by dx
-    //         // But we must check min width constraint carefully
+            e.stopPropagation();
+        }
+    }
 
-    //         // Proposed Width
-    //         const proposedW = this.startResizeBounds.width - dx;
-    //         if (proposedW >= minW) {
-    //             newW = proposedW;
-    //             newX = this.startResizeBounds.x + dx;
-    //         } else {
-    //             newW = minW;
-    //             newX = this.startResizeBounds.x + (this.startResizeBounds.width - minW);
-    //         }
-    //     }
+    private onGlobalPointerMove(e: PointerEvent) {
+        if (!this.isResizing || !this.startResizeBounds || !this.startMousePosition || !this.resizeDirection || !this.parent) {
+            return;
+        }
 
-    //     if (this.resizeDirection.includes('s')) {
-    //         newH = Math.max(minH, this.startResizeBounds.height + dy);
-    //     }
-    //     if (this.resizeDirection.includes('n')) {
-    //         const proposedH = this.startResizeBounds.height - dy;
-    //         if (proposedH >= minH) {
-    //             newH = proposedH;
-    //             newY = this.startResizeBounds.y + dy;
-    //         } else {
-    //             newH = minH;
-    //             newY = this.startResizeBounds.y + (this.startResizeBounds.height - minH);
-    //         }
-    //     }
+        const dx = (e.clientX - this.startMousePosition.x) / this.parent.scale.x;
+        const dy = (e.clientY - this.startMousePosition.y) / this.parent.scale.y;
 
-    //     this.x = newX;
-    //     this.y = newY;
-    //     this.resize(newW, newH);
-    // }
+        let newX = this.startResizeBounds.x;
+        let newY = this.startResizeBounds.y;
+        let newW = this.startResizeBounds.width;
+        let newH = this.startResizeBounds.height;
 
-    // private onBorderPointerUp(e: FederatedPointerEvent) {
-    //     this.isResizing = false;
-    //     this.resizeDirection = null;
-    //     this.startResizeBounds = null;
-    //     this.startMousePosition = null;
-    // }
+        const minW = 200;
+        const minH = 100;
 
-    // public resize(w: number, h: number) {
-    //     this.width_ = w;
-    //     this.height_ = h;
+        if (this.resizeDirection.includes('e')) {
+            newW = Math.max(minW, this.startResizeBounds.width + dx);
+        }
+        if (this.resizeDirection.includes('w')) {
+            const proposedW = this.startResizeBounds.width - dx;
+            if (proposedW >= minW) {
+                newW = proposedW;
+                newX = this.startResizeBounds.x + dx;
+            } else {
+                newW = minW;
+                newX = this.startResizeBounds.x + (this.startResizeBounds.width - minW);
+            }
+        }
 
-    //     // Update graphics
-    //     this.border.clear();
-    //     this.border.rect(0, 0, this.width_, this.height_)
-    //         .fill(0x3c3c3c)
-    //         .stroke({
-    //             width: this.borderThickness,
-    //             color: 0x3c3c3c,
-    //             join: 'round',
-    //             alignment: 0
-    //         });
-    //     this.border.hitArea = new Rectangle(-this.borderThickness - this.borderHitAreaBuffer, -this.borderThickness - this.borderHitAreaBuffer, this.width_ + this.borderThickness * 2 + this.borderHitAreaBuffer * 2, this.height_ + this.borderThickness * 2 + this.borderHitAreaBuffer * 2);
+        if (this.resizeDirection.includes('s')) {
+            newH = Math.max(minH, this.startResizeBounds.height + dy);
+        }
+        if (this.resizeDirection.includes('n')) {
+            const proposedH = this.startResizeBounds.height - dy;
+            if (proposedH >= minH) {
+                newH = proposedH;
+                newY = this.startResizeBounds.y + dy;
+            } else {
+                newH = minH;
+                newY = this.startResizeBounds.y + (this.startResizeBounds.height - minH);
+            }
+        }
 
-    //     // Update Title Bar
-    //     this.titleBar.style.width = `${this.width_}px`;
-    //     this.titleBarDOMContainer.hitArea = new Rectangle(0, 0, this.width_, this.titleHeight);
+        this.x = newX;
+        this.y = newY;
+        this.resize(newW, newH);
+    }
 
-    //     // Update Title Bar Proxy
-    //     this.titleBarProxy.clear();
-    //     this.titleBarProxy.rect(0, 0, this.width_, this.titleHeight);
-    //     this.titleBarProxy.hitArea = new Rectangle(0, 0, this.width_, this.titleHeight);
+    private onGlobalPointerUp(e: PointerEvent) {
+        if (this.isResizing) {
+            this.isResizing = false;
+            this.resizeDirection = null;
+            this.startResizeBounds = null;
+            this.startMousePosition = null;
+            this.wrapper.releasePointerCapture(e.pointerId);
+            this.wrapper.style.cursor = 'default';
+        }
+    }
 
-    //     // Update Editor
-    //     this.editorDiv.style.width = `${this.width_}px`;
-    //     this.editorDiv.style.height = `${this.height_ - this.titleHeight}px`;
+    public resize(w: number, h: number) {
+        this.width_ = w;
+        this.height_ = h;
 
-    //     // Trigger Monaco Layout
-    //     if (this.editorInstance) {
-    //         this.editorInstance.layout();
-    //     }
-    // }
+        this.wrapper.style.width = `${this.width_}px`;
+        this.wrapper.style.height = `${this.height_}px`;
+
+        this.titleBarDiv.style.width = `${this.width_}px`;
+
+        this.monacoDiv.style.width = `${this.width_}px`;
+        this.monacoDiv.style.height = `${this.height_ - this.titleHeight}px`;
+
+        if (this.monacoInstance) {
+            this.monacoInstance.layout();
+        }
+    }
 
 
     private save() {
@@ -283,6 +306,9 @@ export class EditorNode extends DOMContainer {
     }
 
     public override destroy(options?: any) {
+        window.removeEventListener('pointermove', this.boundOnGlobalPointerMove);
+        window.removeEventListener('pointerup', this.boundOnGlobalPointerUp);
+
         super.destroy(options);
         if (this.monacoDiv && this.monacoDiv.parentNode) {
             this.monacoDiv.parentNode.removeChild(this.monacoDiv);
