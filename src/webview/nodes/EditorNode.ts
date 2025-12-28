@@ -296,7 +296,7 @@ export class EditorNode extends DOMContainer {
         }
     }
 
-    private setZIndex(z: number) {
+    public setZIndex(z: number) {
         this.zIndex = z;
         this.wrapper.style.zIndex = z.toString();
     }
