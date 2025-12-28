@@ -10,6 +10,8 @@ export class Grid extends Container {
     private graphics: Graphics;
     private maskGraphics: Graphics;
 
+    // lastDrawnBounds and lastScale are no longer used for optimization,
+    // as the grid is now redrawn on every update via the ticker.
     private lastDrawnBounds: Rectangle = new Rectangle(0, 0, 0, 0);
     private lastScale: number = -1;
 
@@ -20,6 +22,7 @@ export class Grid extends Container {
         this.addChild(this.graphics);
 
         this.maskGraphics = new Graphics();
+        this.addChild(this.maskGraphics);
         this.mask = this.maskGraphics;
     }
 
@@ -33,66 +36,39 @@ export class Grid extends Container {
         // By default masks use the shape.
 
         const bounds = this.viewport.getBounds();
-        const padding = 2000; // Large enough to cover visible area
+        // Use a larger padding to ensure the mask covers the entire viewport area,
+        // even when the viewport is rapidly moving or scaling.
+        const padding = Math.max(bounds.width, bounds.height) * 2; // Dynamic padding based on viewport size
 
-        this.maskGraphics.rect(
-            bounds.left - padding,
-            bounds.top - padding,
-            bounds.width + padding * 2,
-            bounds.height + padding * 2
-        ).fill(0xffffff);
+        this.maskGraphics
+            .rect(bounds.left - padding, bounds.top - padding, bounds.width + padding * 2, bounds.height + padding * 2)
+            .fill(0xffffff);
 
         for (const node of nodes) {
-            const nodeBounds = node.getMaskBounds();
-            // Use hole to cut out the node area from the mask
-            this.maskGraphics.rect(
-                nodeBounds.x,
-                nodeBounds.y,
-                nodeBounds.width,
-                nodeBounds.height
-            ).cut();
+            const b = node.getMaskBounds();
+            this.maskGraphics
+                .rect(b.x, b.y, b.width, b.height)
+                .cut();
         }
     }
 
+    // This method is now called by an external ticker, ensuring it runs at a high priority.
     public update() {
         const bounds = this.viewport.getBounds();
         const currentScale = this.viewport.getScale();
 
-        // 1. Check if we need to redraw
-        const scaleChanged = Math.abs(currentScale - this.lastScale) > 0.01 * currentScale;
-
-        const marginX = this.lastDrawnBounds.width * 0.1;
-        const marginY = this.lastDrawnBounds.height * 0.1;
-
-        const isInside = (
-            bounds.left >= this.lastDrawnBounds.x + marginX &&
-            bounds.right <= this.lastDrawnBounds.right - marginX &&
-            bounds.top >= this.lastDrawnBounds.y + marginY &&
-            bounds.bottom <= this.lastDrawnBounds.bottom - marginY
-        );
-
-        if (!scaleChanged && isInside && currentScale !== this.lastScale) {
-            return;
-        }
-
-        // 2. Calculate new draw area
         const majorSize = 1000;
-        const minorSize = 100;
+        // Calculate the visible area with some extra padding to avoid flickering at edges
+        const padding = majorSize * 2; // Ensure enough padding for major lines
 
-        const left = Math.floor((bounds.left - bounds.width) / majorSize) * majorSize;
-        const top = Math.floor((bounds.top - bounds.height) / majorSize) * majorSize;
-        const right = Math.ceil((bounds.right + bounds.width) / majorSize) * majorSize;
-        const bottom = Math.ceil((bounds.bottom + bounds.height) / majorSize) * majorSize;
+        const left = Math.floor((bounds.left - padding) / majorSize) * majorSize;
+        const top = Math.floor((bounds.top - padding) / majorSize) * majorSize;
+        const right = Math.ceil((bounds.right + padding) / majorSize) * majorSize;
+        const bottom = Math.ceil((bounds.bottom + padding) / majorSize) * majorSize;
 
-        this.lastDrawnBounds.x = left;
-        this.lastDrawnBounds.y = top;
-        this.lastDrawnBounds.width = right - left;
-        this.lastDrawnBounds.height = bottom - top;
-        this.lastScale = currentScale;
-
+        // Redraw grid on every update. Optimization based on lastDrawnBounds/lastScale is removed
+        // to ensure perfect sync during drag/pan and scale changes.
         this.redraw(left, top, right, bottom);
-        // We don't have nodes here easily, so maybe CanvasManager should call it.
-        // Actually, let's just make CanvasManager call updateMask when grid updates.
     }
 
     private redraw(left: number, top: number, right: number, bottom: number) {

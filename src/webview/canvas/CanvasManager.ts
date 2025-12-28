@@ -53,6 +53,11 @@ export class CanvasManager {
 
         // Initialize zoomLevel based on initial scale
         this.zoomLevel = Math.log(this.contentContainer.scale.x) / Math.log(this.ZOOM_BASE);
+
+        // Update grid and mask relative to everything else. Priority 50 (INTERACTION) ensures it runs before most other things.
+        this.app.ticker.add(() => {
+            this.updateGrid();
+        }, this, 50);
     }
 
     private createToolbar() {
@@ -82,10 +87,7 @@ export class CanvasManager {
 
         this.nodes.push(editor);
 
-        // Update mask when node moves or resizes
-        editor.on('moved', () => this.grid.updateMask(this.nodes));
-        editor.on('resized', () => this.grid.updateMask(this.nodes));
-
+        // We no longer need listeners here because the ticker handles it
         this.grid.updateMask(this.nodes);
     }
 
