@@ -8,6 +8,7 @@ import { Viewport } from './Viewport';
 export class Grid extends Container {
     private viewport: Viewport;
     private graphics: Graphics;
+    private maskGraphics: Graphics;
 
     private lastDrawnBounds: Rectangle = new Rectangle(0, 0, 0, 0);
     private lastScale: number = -1;
@@ -17,6 +18,40 @@ export class Grid extends Container {
         this.viewport = viewport;
         this.graphics = new Graphics();
         this.addChild(this.graphics);
+
+        this.maskGraphics = new Graphics();
+        this.mask = this.maskGraphics;
+    }
+
+    public updateMask(nodes: any[]) {
+        this.maskGraphics.clear();
+
+        // We want to draw the grid everywhere EXCEPT where the nodes are.
+        // In PixiJS 8, we can draw a huge rectangle and then use holes.
+        // Or we can draw the inverse.
+        // For a mask, white = visible, black = hidden (in ALPHA mode).
+        // By default masks use the shape.
+
+        const bounds = this.viewport.getBounds();
+        const padding = 2000; // Large enough to cover visible area
+
+        this.maskGraphics.rect(
+            bounds.left - padding,
+            bounds.top - padding,
+            bounds.width + padding * 2,
+            bounds.height + padding * 2
+        ).fill(0xffffff);
+
+        for (const node of nodes) {
+            const nodeBounds = node.getMaskBounds();
+            // Use hole to cut out the node area from the mask
+            this.maskGraphics.rect(
+                nodeBounds.x,
+                nodeBounds.y,
+                nodeBounds.width,
+                nodeBounds.height
+            ).cut();
+        }
     }
 
     public update() {
@@ -56,6 +91,8 @@ export class Grid extends Container {
         this.lastScale = currentScale;
 
         this.redraw(left, top, right, bottom);
+        // We don't have nodes here easily, so maybe CanvasManager should call it.
+        // Actually, let's just make CanvasManager call updateMask when grid updates.
     }
 
     private redraw(left: number, top: number, right: number, bottom: number) {

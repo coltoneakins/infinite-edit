@@ -19,6 +19,7 @@ export class CanvasManager {
 
     private messageClient: MessageClient | null = null;
     private toolbar: Toolbar | null = null;
+    private nodes: EditorNode[] = [];
 
     constructor(app: Application, messageClient: MessageClient) {
         this.messageClient = messageClient;
@@ -69,7 +70,7 @@ export class CanvasManager {
 
     public onResize() {
         this.stage.hitArea = this.app.screen;
-        this.grid.update();
+        this.updateGrid();
         this.updateToolbarPosition();
     }
 
@@ -78,6 +79,24 @@ export class CanvasManager {
         this.contentContainer.addChild(editor);
         editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
         editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;
+
+        this.nodes.push(editor);
+
+        // Update mask when node moves or resizes
+        editor.on('moved', () => this.grid.updateMask(this.nodes));
+        editor.on('resized', () => this.grid.updateMask(this.nodes));
+
+        this.grid.updateMask(this.nodes);
+    }
+
+    public removeEditor(editor: EditorNode) {
+        const index = this.nodes.indexOf(editor);
+        if (index !== -1) {
+            this.nodes.splice(index, 1);
+            this.contentContainer.removeChild(editor);
+            editor.destroy();
+            this.updateGrid();
+        }
     }
 
     private onPointerDown(e: FederatedPointerEvent) {
@@ -107,7 +126,7 @@ export class CanvasManager {
             this.contentContainer.y += dy;
 
             this.lastPos = newPos;
-            this.grid.update();
+            this.updateGrid();
         }
     }
 
@@ -131,7 +150,11 @@ export class CanvasManager {
         this.contentContainer.x = e.global.x - worldPos.x * newScale;
         this.contentContainer.y = e.global.y - worldPos.y * newScale;
 
-        this.grid.update();
+        this.updateGrid();
     }
 
+    private updateGrid() {
+        this.grid.update();
+        this.grid.updateMask(this.nodes);
+    }
 }

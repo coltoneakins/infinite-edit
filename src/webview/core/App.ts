@@ -17,7 +17,7 @@ class App {
         this.app = new Application();
         await this.app.init({
             resizeTo: window,
-            backgroundColor: 0x0d162b,
+            backgroundAlpha: 0,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
         });
@@ -25,9 +25,17 @@ class App {
         const container = document.getElementById('canvas-container');
         if (container) {
             container.appendChild(this.app.canvas);
+            // Ensure Pixi listens to events on the container, not the canvas
+            // This allows us to set pointer-events: none on the canvas so it 
+            // doesn't block the HTML elements underneath.
+            this.app.renderer.events.setTargetElement(container);
         } else {
             document.body.appendChild(this.app.canvas);
+            this.app.renderer.events.setTargetElement(document.body);
         }
+
+        // Give the canvas a style to avoid blocking pointers
+        this.app.canvas.style.pointerEvents = 'none';
 
         // Initialize message client
         // This is where the frontend handles message passing

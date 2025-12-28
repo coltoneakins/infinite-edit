@@ -145,6 +145,7 @@ export class EditorNode extends DOMContainer {
             const parentPoint = this.parent.toLocal(globalPoint);
             this.x = parentPoint.x - this.dragOffset.x;
             this.y = parentPoint.y - this.dragOffset.y;
+            this.emit('moved');
         }
     }
 
@@ -266,6 +267,7 @@ export class EditorNode extends DOMContainer {
         this.x = newX;
         this.y = newY;
         this.resize(newW, newH);
+        this.emit('moved'); // Positional change during resize
     }
 
     private onGlobalPointerUp(e: PointerEvent) {
@@ -294,6 +296,7 @@ export class EditorNode extends DOMContainer {
         if (this.monacoInstance) {
             this.monacoInstance.layout();
         }
+        this.emit('resized');
     }
 
     public setZIndex(z: number) {
@@ -307,6 +310,10 @@ export class EditorNode extends DOMContainer {
             file: this.filePath,
             content: content
         });
+    }
+
+    public getMaskBounds(): Rectangle {
+        return new Rectangle(this.x, this.y, this.width_, this.height_);
     }
 
     public override destroy(options?: any) {

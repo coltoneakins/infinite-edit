@@ -129,8 +129,19 @@ export class InfiniteEditPanel {
 				    <title>Infinite Edit</title>
 				    <link rel="icon" type="image/png" href="${webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'icon.png'))}" />
 				    <style>
-                        body { margin: 0; padding: 0; overflow: hidden; background-color: #1e1e1e; }
-                        #canvas-container { width: 100vw; height: 100vh; }
+                        body { margin: 0; padding: 0; overflow: hidden; background-color: #0d162b; }
+                        #canvas-container { position: relative; width: 100vw; height: 100vh; }
+                        #canvas-container canvas { 
+                            position: absolute; 
+                            top: 0; 
+                            left: 0; 
+                            z-index: 10; 
+                            pointer-events: none;
+                        }
+                        /* PixiJS 8 DOM container class */
+                        #canvas-container>div {
+                            z-index: 1 !important;
+                        }
 				    </style>
 			    </head>
 			    <body>
