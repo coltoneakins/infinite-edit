@@ -57,17 +57,40 @@ export class Grid extends Container {
         const bounds = this.viewport.getBounds();
         const currentScale = this.viewport.getScale();
 
+        // 1. Check if we need to redraw the grid lines
+        const scaleChanged = Math.abs(currentScale - this.lastScale) > 0.01 * currentScale;
+
+        // Use a margin to avoid constant redraws while panning within a reasonable range
+        const marginX = this.lastDrawnBounds.width * 0.1;
+        const marginY = this.lastDrawnBounds.height * 0.1;
+
+        const isInside = (
+            bounds.left >= this.lastDrawnBounds.x + marginX &&
+            bounds.right <= this.lastDrawnBounds.right - marginX &&
+            bounds.top >= this.lastDrawnBounds.y + marginY &&
+            bounds.bottom <= this.lastDrawnBounds.bottom - marginY
+        );
+
+        // If we haven't moved enough or changed scale significantly, skip the expensive redraw
+        if (!scaleChanged && isInside && this.lastScale !== -1) {
+            return;
+        }
+
         const majorSize = 1000;
-        // Calculate the visible area with some extra padding to avoid flickering at edges
-        const padding = majorSize * 2; // Ensure enough padding for major lines
+        // Calculate the visible area with extra padding
+        const padding = majorSize * 2;
 
         const left = Math.floor((bounds.left - padding) / majorSize) * majorSize;
         const top = Math.floor((bounds.top - padding) / majorSize) * majorSize;
         const right = Math.ceil((bounds.right + padding) / majorSize) * majorSize;
         const bottom = Math.ceil((bounds.bottom + padding) / majorSize) * majorSize;
 
-        // Redraw grid on every update. Optimization based on lastDrawnBounds/lastScale is removed
-        // to ensure perfect sync during drag/pan and scale changes.
+        this.lastDrawnBounds.x = left;
+        this.lastDrawnBounds.y = top;
+        this.lastDrawnBounds.width = right - left;
+        this.lastDrawnBounds.height = bottom - top;
+        this.lastScale = currentScale;
+
         this.redraw(left, top, right, bottom);
     }
 

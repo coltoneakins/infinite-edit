@@ -28,7 +28,6 @@ export class EditorNode extends DOMContainer {
         super();
         this.messageClient = messageClient;
         this.filePath = file;
-        this.isRenderGroup = true;
         this.eventMode = 'static';
 
         // Wrapper
@@ -314,6 +313,10 @@ export class EditorNode extends DOMContainer {
 
     public getMaskBounds(): Rectangle {
         return new Rectangle(this.x, this.y, this.width_, this.height_);
+    }
+
+    public get isInteracting(): boolean {
+        return this.isDragging || this.isResizing;
     }
 
     public override destroy(options?: any) {

@@ -56,7 +56,13 @@ export class CanvasManager {
 
         // Update grid and mask relative to everything else. Priority 50 (INTERACTION) ensures it runs before most other things.
         this.app.ticker.add(() => {
-            this.updateGrid();
+            const isAnyInteracting = this.nodes.some(n => n.isInteracting);
+            if (isAnyInteracting) {
+                // Skip masking during interaction to save compute, only update the grid lines
+                this.grid.update();
+            } else {
+                this.updateGrid();
+            }
         }, this, 50);
     }
 
