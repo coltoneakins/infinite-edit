@@ -1,32 +1,42 @@
 import { Container, Graphics, Rectangle } from 'pixi.js';
 import { Viewport } from './Viewport';
+import { MaskManager, MaskConsumer, MaskProvider } from '../core/MaskManager';
 
 /**
  * Intelligent Grid that draws major and minor lines based on the viewport.
  * Uses the Viewport utility to calculate visible areas.
  */
-export class Grid extends Container {
+export class Grid extends Container implements MaskConsumer {
     private viewport: Viewport;
     private graphics: Graphics;
     private maskGraphics: Graphics;
+    private maskManager: MaskManager;
 
     // lastDrawnBounds and lastScale are no longer used for optimization,
     // as the grid is now redrawn on every update via the ticker.
     private lastDrawnBounds: Rectangle = new Rectangle(0, 0, 0, 0);
     private lastScale: number = -1;
 
-    constructor(viewport: Viewport) {
+    constructor(viewport: Viewport, maskManager: MaskManager) {
         super();
         this.viewport = viewport;
+        this.maskManager = maskManager;
         this.graphics = new Graphics();
+        this.graphics.label = 'grid-graphics';
         this.addChild(this.graphics);
 
         this.maskGraphics = new Graphics();
         this.addChild(this.maskGraphics);
         this.mask = this.maskGraphics;
+
+        this.maskManager.registerConsumer(this);
     }
 
-    public updateMask(nodes: any[]) {
+    public onMaskUpdate(providers: MaskProvider[]) {
+        this.updateMask(providers);
+    }
+
+    public updateMask(nodes: MaskProvider[]) {
         this.maskGraphics.clear();
 
         // We want to draw the grid everywhere EXCEPT where the nodes are.

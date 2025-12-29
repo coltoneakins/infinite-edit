@@ -5,12 +5,15 @@ import { Viewport } from './Viewport';
 import { Toolbar } from '../ui/Toolbar';
 import { MessageClient } from '../core/MessageClient';
 
+import { MaskManager, MaskedHitArea } from '../core/MaskManager';
+
 export class CanvasManager {
     private app: Application;
     private stage: Container;
     private contentContainer: Container;
     private viewport: Viewport;
     private grid: Grid;
+    private maskManager: MaskManager; // Centralized mask manager
     private zoomLevel: number = 0;
     private readonly ZOOM_SENSITIVITY: number = 0.004;
     private readonly ZOOM_BASE: number = 1.1;
@@ -25,6 +28,7 @@ export class CanvasManager {
         this.messageClient = messageClient;
         this.app = app;
         this.stage = app.stage;
+        this.maskManager = new MaskManager();
 
         // Create a container for all content (nodes)
         this.contentContainer = new Container();
@@ -34,7 +38,7 @@ export class CanvasManager {
         this.viewport = new Viewport(this.app, this.contentContainer);
 
         // Initialize Grid
-        this.grid = new Grid(this.viewport);
+        this.grid = new Grid(this.viewport, this.maskManager);
         this.contentContainer.addChild(this.grid);
         this.grid.update();
 
@@ -43,7 +47,8 @@ export class CanvasManager {
 
         // Enable interactivity on the stage for panning
         this.stage.eventMode = 'static';
-        this.stage.hitArea = this.app.screen;
+        // Use MaskedHitArea so the stage respects the holes defined by providers (EditorNodes)
+        this.stage.hitArea = new MaskedHitArea(this.maskManager, this.app.screen);
 
         this.stage.on('pointerdown', this.onPointerDown.bind(this));
         this.stage.on('pointerup', this.onPointerUp.bind(this));
@@ -64,11 +69,25 @@ export class CanvasManager {
                 this.updateGrid();
             }
         }, this, 50);
+
+        // Make a test bezier curve with a mouseover console log message
+        const testCurve = new Graphics()
+            .moveTo(100, 100)
+            .bezierCurveTo(200, 200, 300, 300, 400, 400)
+            .stroke({
+                width: 10, color: 0xff0000
+            });
+        testCurve.eventMode = 'static';
+        testCurve.interactive = true;
+        testCurve.on('pointerdown', () => console.log('Mouse down on test curve'));
+        this.contentContainer.addChild(testCurve);
     }
 
     private createToolbar() {
         this.toolbar = new Toolbar(this.messageClient!);
         this.stage.addChild(this.toolbar);
+        // The toolbar might also want to register as a mask provider if it blocks clicks 
+        // that shouldn't pan the canvas. For now, we assume it sits on top.
         this.updateToolbarPosition();
     }
 
@@ -80,21 +99,27 @@ export class CanvasManager {
     }
 
     public onResize() {
-        this.stage.hitArea = this.app.screen;
+        // Update the stage hit area to match new screen size
+        if (this.stage.hitArea instanceof MaskedHitArea) {
+            this.stage.hitArea.updateBaseArea(this.app.screen);
+        } else {
+            this.stage.hitArea = this.app.screen;
+        }
+
         this.updateGrid();
         this.updateToolbarPosition();
     }
 
     public addEditor(file: string, content: string) {
-        const editor = new EditorNode(file, content, this.messageClient!);
+        const editor = new EditorNode(file, content, this.messageClient!, this.maskManager);
         this.contentContainer.addChild(editor);
         editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
         editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;
 
         this.nodes.push(editor);
 
-        // We no longer need listeners here because the ticker handles it
-        this.grid.updateMask(this.nodes);
+        // MaskManager updates automatically or via Ticker
+        this.maskManager.update();
     }
 
     public removeEditor(editor: EditorNode) {
@@ -163,6 +188,7 @@ export class CanvasManager {
 
     private updateGrid() {
         this.grid.update();
-        this.grid.updateMask(this.nodes);
+        // Centralized update triggers consumers (Grid) to redraw masks
+        this.maskManager.update();
     }
 }

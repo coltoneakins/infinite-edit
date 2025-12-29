@@ -25,16 +25,27 @@ class App {
         const container = document.getElementById('canvas-container');
         if (container) {
             container.appendChild(this.app.canvas);
-            // Ensure Pixi listens to events on the container, not the canvas
-            // This allows us to set pointer-events: none on the canvas so it 
-            // doesn't block the HTML elements underneath.
-            this.app.renderer.events.setTargetElement(container);
+            // IMPORTANT:We listen on the canvas again, but we use the parent 
+            // container for the move listener to capture the user's intent 
+            // and toggle pointer-events accordingly.
+
+            container.addEventListener('pointermove', (e: PointerEvent) => {
+                // clientX/Y are global.
+                // In PixiJS 8, we use rootBoundary.hitTest to find the object at this point.
+                const hit = (this.app.renderer.events as any).rootBoundary?.hitTest(e.clientX, e.clientY);
+
+                // If hit is null, it means we are over a "hole" (like the masked part of the Grid)
+                // or somewhere else that shouldn't block. 
+                // We want auto if we hit something interactive (Grid, Buttons, etc).
+                const isHole = !hit;
+
+                this.app.canvas.style.pointerEvents = isHole ? 'none' : 'auto';
+            }, { passive: true });
         } else {
             document.body.appendChild(this.app.canvas);
-            this.app.renderer.events.setTargetElement(document.body);
         }
 
-        // Give the canvas a style to avoid blocking pointers
+        // Default to none to allow background panning and editor interaction
         this.app.canvas.style.pointerEvents = 'none';
 
         // Initialize message client

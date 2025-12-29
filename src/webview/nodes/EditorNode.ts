@@ -3,7 +3,9 @@ import * as monaco from 'monaco-editor';
 import { LanguageManager } from '../core/LanguageManager';
 import { MessageClient } from '../core/MessageClient';
 
-export class EditorNode extends DOMContainer {
+import { MaskManager, MaskProvider } from '../core/MaskManager';
+
+export class EditorNode extends DOMContainer implements MaskProvider {
     private wrapper: HTMLDivElement;
     private titleBarDivTextColor: string = '#ffffff';
     private titleBarDiv: HTMLDivElement;
@@ -15,6 +17,7 @@ export class EditorNode extends DOMContainer {
     private filePath: string;
     private borderThickness: number = 5;
     private messageClient: MessageClient;
+    private maskManager: MaskManager;
     private isDragging: boolean = false;
     private dragOffset: { x: number; y: number } = { x: 0, y: 0 };
     private isResizing: boolean = false;
@@ -24,11 +27,15 @@ export class EditorNode extends DOMContainer {
     private boundOnGlobalPointerMove = this.onGlobalPointerMove.bind(this);
     private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
 
-    constructor(file: string, content: string, messageClient: MessageClient) {
+    constructor(file: string, content: string, messageClient: MessageClient, maskManager: MaskManager) {
         super();
         this.messageClient = messageClient;
+        this.maskManager = maskManager;
         this.filePath = file;
         this.eventMode = 'static';
+
+        // Register as a provider of mask regions (holes)
+        this.maskManager.registerProvider(this);
 
         // Wrapper
         this.wrapper = document.createElement('div');
@@ -320,6 +327,7 @@ export class EditorNode extends DOMContainer {
     }
 
     public override destroy(options?: any) {
+        this.maskManager.unregisterProvider(this);
         window.removeEventListener('pointermove', this.boundOnGlobalPointerMove);
         window.removeEventListener('pointerup', this.boundOnGlobalPointerUp);
 
