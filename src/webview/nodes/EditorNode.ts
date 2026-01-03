@@ -11,11 +11,11 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private titleBarDiv: HTMLDivElement;
     private monacoDiv: HTMLDivElement;
     private monacoInstance: monaco.editor.IStandaloneCodeEditor;
+    private borderThickness: number = 5;
     private width_: number = 400;
     private height_: number = 600;
     private titleHeight: number = 30;
     private filePath: string;
-    private borderThickness: number = 5;
     private messageClient: MessageClient;
     private maskManager: MaskManager;
     private isDragging: boolean = false;
@@ -46,6 +46,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.wrapper.style.backgroundColor = '#3c3c3c';
         this.wrapper.style.border = `${this.borderThickness}px solid #3c3c3c`;
         this.wrapper.style.borderRadius = '5px';
+        this.wrapper.style.boxSizing = 'border-box';
 
         this.element = this.wrapper;
 
@@ -160,13 +161,13 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         const w = this.width_;
         const h = this.height_;
 
-        let v = '';
+        let v_dir = '';
         let h_dir = '';
 
         if (y < threshold) {
-            v = 'n';
+            v_dir = 'n';
         } else if (y > h - threshold) {
-            v = 's';
+            v_dir = 's';
         }
 
         if (x < threshold) {
@@ -175,7 +176,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             h_dir = 'e';
         }
 
-        return (v || h_dir) ? v + h_dir : null;
+        return (v_dir || h_dir) ? v_dir + h_dir : null;
     }
 
     private onWrapperPointerMove(e: PointerEvent) {

@@ -1,5 +1,6 @@
 import { Container, DOMContainer } from 'pixi.js';
 import { MessageClient } from '../core/MessageClient';
+import { MaskManager } from '../core/MaskManager';
 
 export class Toolbar extends Container {
     private messageClient: MessageClient;
@@ -8,10 +9,12 @@ export class Toolbar extends Container {
     private resultsList!: HTMLUListElement;
     private domContainer!: DOMContainer;
     public readonly width_: number = 500;
+    private maskManager: MaskManager;
 
-    constructor(messageClient: MessageClient) {
+    constructor(messageClient: MessageClient, maskManager: MaskManager) {
         super();
         this.messageClient = messageClient;
+        this.maskManager = maskManager;
         this.init();
     }
 
