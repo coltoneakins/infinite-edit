@@ -26,8 +26,15 @@ export class Grid extends Container implements MaskConsumer {
         this.addChild(this.graphics);
 
         this.maskGraphics = new Graphics();
+        this.maskGraphics.label = 'grid-mask-graphics';
         this.addChild(this.maskGraphics);
-        this.mask = this.maskGraphics;
+
+        // Use PixiJS 8's native inverse masking. 
+        // This renders the grid everywhere EXCEPT where the maskGraphics has fills.
+        (this as any).setMask({
+            mask: this.maskGraphics,
+            inverse: true
+        });
 
         this.maskManager.registerConsumer(this);
     }
@@ -40,31 +47,19 @@ export class Grid extends Container implements MaskConsumer {
         this.maskGraphics.clear();
 
         // We want to draw the grid everywhere EXCEPT where the providers are.
-        // In PixiJS 8, we can draw a huge rectangle and then use holes.
-        // Or we can draw the inverse.
-        // For a mask, white = visible, black = hidden (in ALPHA mode).
-        // By default masks use the shape.
-
-        const bounds = this.viewport.getBounds();
-        // Use a larger padding to ensure the mask covers the entire viewport area,
-        // even when the viewport is rapidly moving or scaling.
-        const padding = Math.max(bounds.width, bounds.height) * 2; // Dynamic padding based on viewport size
-
-        this.maskGraphics
-            .rect(bounds.left - padding, bounds.top - padding, bounds.width + padding * 2, bounds.height + padding * 2)
-            .fill(0xffffff);
-
+        // In inverse mode, we just fill the areas we want to HIDE.
+        // Fills are additive, so overlapping nodes naturally merge into a single hole,
+        // solving the XOR/Even-Odd rule flickering that occurs with `cut()`.
         for (const provider of providers) {
             const globalBounds = provider.getMaskGlobalBounds();
 
-            // Convert global bounds to Grid's local space to determine where to cut
-            // This handles both moving nodes (siblings) and fixed UI (stage children) correctly
+            // Convert global screen bounds to Grid's local space
             const localTo = this.toLocal({ x: globalBounds.x, y: globalBounds.y });
             const localBottomRight = this.toLocal({ x: globalBounds.x + globalBounds.width, y: globalBounds.y + globalBounds.height });
 
             this.maskGraphics
                 .rect(localTo.x, localTo.y, localBottomRight.x - localTo.x, localBottomRight.y - localTo.y)
-                .cut();
+                .fill(0xffffff); // Color is irrelevant for stencil masks
         }
     }
 
