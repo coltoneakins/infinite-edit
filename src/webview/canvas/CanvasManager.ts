@@ -108,9 +108,6 @@ export class CanvasManager {
 
         this.updateGrid();
         this.updateToolbarPosition();
-
-        // Update the mask manager
-        this.maskManager.update();
     }
 
     public addEditor(file: string, content: string) {

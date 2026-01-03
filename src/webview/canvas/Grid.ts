@@ -36,10 +36,10 @@ export class Grid extends Container implements MaskConsumer {
         this.updateMask(providers);
     }
 
-    public updateMask(nodes: MaskProvider[]) {
+    public updateMask(providers: MaskProvider[]) {
         this.maskGraphics.clear();
 
-        // We want to draw the grid everywhere EXCEPT where the nodes are.
+        // We want to draw the grid everywhere EXCEPT where the providers are.
         // In PixiJS 8, we can draw a huge rectangle and then use holes.
         // Or we can draw the inverse.
         // For a mask, white = visible, black = hidden (in ALPHA mode).
@@ -54,10 +54,16 @@ export class Grid extends Container implements MaskConsumer {
             .rect(bounds.left - padding, bounds.top - padding, bounds.width + padding * 2, bounds.height + padding * 2)
             .fill(0xffffff);
 
-        for (const node of nodes) {
-            const b = node.getMaskLocalBounds();
+        for (const provider of providers) {
+            const globalBounds = provider.getMaskGlobalBounds();
+
+            // Convert global bounds to Grid's local space to determine where to cut
+            // This handles both moving nodes (siblings) and fixed UI (stage children) correctly
+            const localTo = this.toLocal({ x: globalBounds.x, y: globalBounds.y });
+            const localBottomRight = this.toLocal({ x: globalBounds.x + globalBounds.width, y: globalBounds.y + globalBounds.height });
+
             this.maskGraphics
-                .rect(b.x, b.y, b.width, b.height)
+                .rect(localTo.x, localTo.y, localBottomRight.x - localTo.x, localBottomRight.y - localTo.y)
                 .cut();
         }
     }

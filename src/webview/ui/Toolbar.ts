@@ -1,8 +1,8 @@
-import { Container, DOMContainer } from 'pixi.js';
+import { Container, DOMContainer, Rectangle } from 'pixi.js';
 import { MessageClient } from '../core/MessageClient';
-import { MaskManager } from '../core/MaskManager';
+import { MaskManager, MaskProvider } from '../core/MaskManager';
 
-export class Toolbar extends Container {
+export class Toolbar extends Container implements MaskProvider {
     private messageClient: MessageClient;
     private element!: HTMLDivElement;
     private input!: HTMLInputElement;
@@ -16,6 +16,36 @@ export class Toolbar extends Container {
         this.messageClient = messageClient;
         this.maskManager = maskManager;
         this.init();
+
+        // Register early
+        this.maskManager.registerProvider(this);
+    }
+
+    public override destroy(options?: any) {
+        this.maskManager.unregisterProvider(this);
+        super.destroy(options);
+    }
+
+    public getMaskLocalBounds(): Rectangle {
+        const w = this.element ? this.element.offsetWidth : this.width_;
+        const h = this.element ? this.element.offsetHeight : 50;
+        return new Rectangle(0, 0, w, h);
+    }
+
+    public getMaskGlobalBounds(): Rectangle {
+        const w = this.element ? this.element.offsetWidth : this.width_;
+        const h = this.element ? this.element.offsetHeight : 50;
+
+        const tl = this.toGlobal({ x: 0, y: 0 });
+        // Since Toolbar is on stage and stage is screen-sized unscaled usually,
+        // toGlobal should return screen coordinates.
+        // However, if element is not yet sized, might be small.
+
+        // Note: DOMContainer elements are overlaid.
+        // We assume the Pixi container transform matches the DOM position.
+        // CanvasManager sets Toolbar x/y.
+
+        return new Rectangle(tl.x, tl.y, w, h);
     }
 
     private init() {
@@ -161,5 +191,8 @@ export class Toolbar extends Container {
         } else {
             this.resultsList.style.display = 'none';
         }
+
+        // Update masks since the toolbar size likely changed
+        this.maskManager.update();
     }
 }
