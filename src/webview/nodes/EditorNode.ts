@@ -43,7 +43,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.wrapper.style.width = `${this.width_}px`;
         this.wrapper.style.height = `${this.height_}px`;
         this.wrapper.style.position = 'relative';
-        this.wrapper.style.overflow = 'hidden';
+        this.wrapper.style.overflow = 'visible'; // Content may overflow so that Monaco editors can make dialog menus
         this.wrapper.style.backgroundColor = '#3c3c3c';
         this.wrapper.style.border = `${this.borderThickness}px solid #3c3c3c`;
         this.wrapper.style.borderRadius = '5px';
@@ -53,7 +53,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
 
         // Title Bar
         this.titleBarDiv = document.createElement('div');
-        this.titleBarDiv.style.width = `${this.width_}px`;
+        this.titleBarDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
         this.titleBarDiv.style.height = `${this.titleHeight}px`;
         this.titleBarDiv.style.backgroundColor = 'transparent';
         this.titleBarDiv.style.lineHeight = `${this.titleHeight}px`;
@@ -79,8 +79,8 @@ export class EditorNode extends DOMContainer implements MaskProvider {
 
         // Setup Monaco Editor
         this.monacoDiv = document.createElement('div');
-        this.monacoDiv.style.width = `${this.width_}px`;
-        this.monacoDiv.style.height = `${this.height_ - this.titleHeight}px`;
+        this.monacoDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
+        this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2}px`;
         this.monacoDiv.style.pointerEvents = 'auto'; // Re-enable for the editor itself
 
         // Setup Monaco Editor
@@ -158,7 +158,13 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     }
 
     private getResizeDirection(x: number, y: number): string | null {
-        const threshold = this.borderThickness + 5; // Slightly larger hit area for ease of use
+        // We want the hit area to be at least 15 screen pixels wide for usability, 
+        // but never smaller than the actual border thickness.
+        const screenThreshold = 15;
+        const worldScale = this.worldTransform.a || 1;
+        const localThreshold = screenThreshold / worldScale;
+
+        const threshold = Math.max(this.borderThickness + 2, localThreshold);
         const w = this.width_;
         const h = this.height_;
 
@@ -185,9 +191,9 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             return;
         }
 
-        const rect = this.wrapper.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const localPoint = this.toLocal({ x: e.clientX, y: e.clientY });
+        const x = localPoint.x;
+        const y = localPoint.y;
         const direction = this.getResizeDirection(x, y);
 
         if (direction) {
@@ -202,9 +208,9 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             return;
         }
 
-        const rect = this.wrapper.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const localPoint = this.toLocal({ x: e.clientX, y: e.clientY });
+        const x = localPoint.x;
+        const y = localPoint.y;
         const direction = this.getResizeDirection(x, y);
 
         if (direction) {
@@ -294,10 +300,10 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.wrapper.style.width = `${this.width_}px`;
         this.wrapper.style.height = `${this.height_}px`;
 
-        this.titleBarDiv.style.width = `${this.width_}px`;
+        this.titleBarDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
 
-        this.monacoDiv.style.width = `${this.width_}px`;
-        this.monacoDiv.style.height = `${this.height_ - this.titleHeight}px`;
+        this.monacoDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
+        this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2}px`;
 
         if (this.monacoInstance) {
             this.monacoInstance.layout();
