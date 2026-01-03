@@ -49,7 +49,7 @@ export class Toolbar extends Container implements MaskProvider {
     }
 
     private init() {
-        this.zIndex = 100; // Ensure it stays on top for Pixi containers and graphics
+        this.zIndex = 1000; // Ensure it stays on top for Pixi containers and graphics
 
         this.element = document.createElement('div');
         this.element.style.width = `${this.width_}px`;
@@ -61,7 +61,7 @@ export class Toolbar extends Container implements MaskProvider {
         this.element.style.borderRadius = '12px';
         this.element.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.4)';
         this.element.style.display = 'flex';
-        this.element.style.zIndex = '100'; // Ensure it stays on top for native DOM elements
+        this.element.style.zIndex = '1000'; // Ensure it stays on top for native DOM elements
         this.element.style.flexDirection = 'column';
         this.element.style.border = '1px solid rgba(255, 255, 255, 0.1)';
 

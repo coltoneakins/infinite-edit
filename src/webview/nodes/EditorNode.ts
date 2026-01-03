@@ -24,6 +24,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private resizeDirection: string | null = null;
     private startMousePosition: { x: number; y: number } | null = null;
     private startResizeBounds: { x: number; y: number; width: number; height: number } | null = null;
+    private static globalMaxZIndex: number = 10;
     private boundOnGlobalPointerMove = this.onGlobalPointerMove.bind(this);
     private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
 
@@ -110,6 +111,8 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.monacoInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             this.save();
         });
+
+        this.bringToFront();
     }
 
     private setAlpha(alpha: number) {
@@ -128,9 +131,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.setAlpha(0.8);
 
         // Bring to front
-        if (this.parent) {
-            this.parent.addChild(this);
-        }
+        this.bringToFront();
 
         e.stopPropagation();
     }
@@ -219,9 +220,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             this.wrapper.setPointerCapture(e.pointerId);
 
             // Bring to front
-            if (this.parent) {
-                this.parent.addChild(this);
-            }
+            this.bringToFront();
 
             e.stopPropagation();
         }
@@ -309,6 +308,14 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     public setZIndex(z: number) {
         this.zIndex = z;
         this.wrapper.style.zIndex = z.toString();
+    }
+
+    private bringToFront() {
+        EditorNode.globalMaxZIndex++;
+        this.setZIndex(EditorNode.globalMaxZIndex);
+        if (this.parent) {
+            this.parent.addChild(this);
+        }
     }
 
     private save() {
