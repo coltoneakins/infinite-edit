@@ -84,7 +84,7 @@ export class CanvasManager {
     }
 
     private createToolbar() {
-        this.toolbar = new Toolbar(this.messageClient!);
+        this.toolbar = new Toolbar(this.messageClient!, this.maskManager);
         this.stage.addChild(this.toolbar);
         // The toolbar might also want to register as a mask provider if it blocks clicks 
         // that shouldn't pan the canvas. For now, we assume it sits on top.
@@ -108,6 +108,9 @@ export class CanvasManager {
 
         this.updateGrid();
         this.updateToolbarPosition();
+
+        // Update the mask manager
+        this.maskManager.update();
     }
 
     public addEditor(file: string, content: string) {

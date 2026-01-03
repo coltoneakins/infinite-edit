@@ -55,7 +55,7 @@ export class Grid extends Container implements MaskConsumer {
             .fill(0xffffff);
 
         for (const node of nodes) {
-            const b = node.getMaskBounds();
+            const b = node.getMaskLocalBounds();
             this.maskGraphics
                 .rect(b.x, b.y, b.width, b.height)
                 .cut();

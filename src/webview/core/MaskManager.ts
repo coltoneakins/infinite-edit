@@ -1,7 +1,8 @@
 import { Rectangle, IHitArea } from 'pixi.js';
 
 export interface MaskProvider {
-    getMaskBounds(): Rectangle;
+    getMaskLocalBounds(): Rectangle;
+    getMaskGlobalBounds(): Rectangle;
 }
 
 export interface MaskConsumer {
@@ -60,7 +61,8 @@ export class MaskedHitArea implements IHitArea {
 
         // Must NOT be within any masked region (hole)
         for (const provider of this.maskManager.getProviders()) {
-            const bounds = provider.getMaskBounds();
+            // Use GLOBAL bounds for hit testing because x,y are global (screen) coordinates
+            const bounds = provider.getMaskGlobalBounds();
             if (bounds.contains(x, y)) {
                 return false;
             }

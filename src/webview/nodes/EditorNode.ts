@@ -319,8 +319,30 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         });
     }
 
-    public getMaskBounds(): Rectangle {
+    public getMaskLocalBounds(): Rectangle {
         return new Rectangle(this.x, this.y, this.width_, this.height_);
+    }
+
+    public getMaskGlobalBounds(): Rectangle {
+        // Since we are using PixiJS, toGlobal handles the parent transforms (like zoom/pan)
+        // for us. We calculate the Top-Left and Bottom-Right corners in global space.
+
+        // We use (0,0) as local top-left
+        const topLeft = this.toGlobal({ x: 0, y: 0 });
+
+        // And (width, height) as local bottom-right
+        const bottomRight = this.toGlobal({ x: this.width_, y: this.height_ });
+
+        // Note: toGlobal accounts for rotation too, but assuming axis-aligned for now since
+        // rectangles are axis-aligned. If rotated, we'd need min/max of 4 corners.
+        // EditorNodes are not rotated in this app.
+
+        return new Rectangle(
+            Math.min(topLeft.x, bottomRight.x),
+            Math.min(topLeft.y, bottomRight.y),
+            Math.abs(bottomRight.x - topLeft.x),
+            Math.abs(bottomRight.y - topLeft.y)
+        );
     }
 
     public get isInteracting(): boolean {
