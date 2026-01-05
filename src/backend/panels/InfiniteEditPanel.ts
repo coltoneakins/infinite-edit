@@ -101,6 +101,7 @@ export class InfiniteEditPanel {
             : webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', fileName)).toString();
 
         const scriptUri = getResourceUri('webview.js');
+        const styleUri = getResourceUri('main.css');
 
         // Generate worker URIs from shared config
         const workerUris: Record<string, string> = {};
@@ -128,22 +129,7 @@ export class InfiniteEditPanel {
 				    <meta http-equiv="Content-Security-Policy" content="${cspSource}">
 				    <title>Infinite Edit</title>
 				    <link rel="icon" type="image/png" href="${webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'icon.png'))}" />
-				    <style>
-                        body { margin: 0; padding: 0; overflow: hidden; background-color: #0d162b; }
-                        /* PixiJS 8 canvas element */
-                        #canvas-container { position: relative; width: 100vw; height: 100vh; }
-                        #canvas-container canvas { 
-                            position: absolute; 
-                            top: 0; 
-                            left: 0; 
-                            z-index: 10; 
-                            pointer-events: none;
-                        }
-                        /* PixiJS 8 DOMContainer wrapper */
-                        #canvas-container>div {
-                            z-index: 1 !important;
-                        }
-				    </style>
+                    <link rel="stylesheet" type="text/css" href="${styleUri}">
 			    </head>
 			    <body>
 			    <div id="canvas-container"></div>

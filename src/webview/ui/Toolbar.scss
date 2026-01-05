@@ -1,0 +1,104 @@
+.toolbar-container {
+    padding: 8px;
+    border-radius: 12px;
+    background-color: rgba(30, 30, 30, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+
+    .toolbar-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        .toolbar-search-icon {
+            position: absolute;
+            left: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px 10px 8px 34px;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            border-radius: 6px;
+            outline: none;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s ease, background 0.2s ease;
+
+            &:focus {
+                border-color: #007fd4;
+                background: rgba(0, 0, 0, 0.4);
+            }
+        }
+    }
+
+    .toolbar-results-list {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 0 0;
+        max-height: 400px;
+        overflow-y: auto;
+        display: none;
+        flex-direction: column;
+        gap: 4px;
+
+        &::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+        }
+
+        .toolbar-result-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            color: #cccccc;
+            display: flex;
+            flex-direction: column;
+            font-size: 13px;
+            transition: background-color 0.1s ease;
+
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                color: #ffffff;
+            }
+
+            .result-label {
+                font-weight: 600;
+                color: #ffffff;
+                margin-bottom: 2px;
+            }
+
+            .result-detail {
+                font-size: 11px;
+                opacity: 0.6;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        }
+    }
+}

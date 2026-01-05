@@ -5,6 +5,8 @@ import { MessageClient } from '../core/MessageClient';
 
 import { MaskManager, MaskProvider } from '../core/MaskManager';
 
+import * as feather from 'feather-icons';
+
 export class EditorNode extends DOMContainer implements MaskProvider {
     private wrapper: HTMLDivElement;
     private titleBarDivTextColor: string = '#ffffff';
@@ -40,40 +42,37 @@ export class EditorNode extends DOMContainer implements MaskProvider {
 
         // Wrapper
         this.wrapper = document.createElement('div');
+        this.wrapper.className = 'editor-node'; // IMPORTANT: This must match the class in the SCSS file
         this.wrapper.style.width = `${this.width_}px`;
         this.wrapper.style.height = `${this.height_}px`;
-        this.wrapper.style.position = 'relative';
-        this.wrapper.style.overflow = 'visible'; // Content may overflow so that Monaco editors can make dialog menus
-        this.wrapper.style.backgroundColor = '#3c3c3c';
-        this.wrapper.style.border = `${this.borderThickness}px solid #3c3c3c`;
-        this.wrapper.style.borderRadius = '5px';
-        this.wrapper.style.boxSizing = 'border-box';
+        this.wrapper.style.borderWidth = `${this.borderThickness}px`;
 
         this.element = this.wrapper;
 
         // Title Bar
         this.titleBarDiv = document.createElement('div');
+        this.titleBarDiv.className = 'editor-title-bar'; // IMPORTANT: This must match the class in the SCSS file
         this.titleBarDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
         this.titleBarDiv.style.height = `${this.titleHeight}px`;
-        this.titleBarDiv.style.backgroundColor = 'transparent';
         this.titleBarDiv.style.lineHeight = `${this.titleHeight}px`;
-        this.titleBarDiv.style.overflow = 'hidden';
-        this.titleBarDiv.style.whiteSpace = 'nowrap';
-        this.titleBarDiv.style.textOverflow = 'ellipsis';
         this.titleBarDiv.style.color = this.titleBarDivTextColor;
-        this.titleBarDiv.style.pointerEvents = 'auto';
-        this.titleBarDiv.style.userSelect = 'none';
-        this.titleBarDiv.style.cursor = 'grab';
-        this.titleBarDiv.className = 'editor-title-bar';
 
         // Title Text - File Path
         const fileName = file.split('/').pop() || file;
         const dirName = file.includes('/') ? file.substring(0, file.lastIndexOf('/') + 1) : '';
-        const titleHtml = dirName
-            ? `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${dirName}<span style="font-weight: 700;">${fileName}</span></span>`
-            : fileName;
+        const titleHtml = `<div class="editor-title-bar-title" title="${dirName}${fileName}">${fileName}</div>`;
 
-        this.titleBarDiv.innerHTML = titleHtml;
+        // Feather Close Icon
+        const closeIcon = feather.icons.x.toSvg({
+            width: 16,
+            height: 16,
+            'stroke-width': 2.5
+        });
+
+        const titlebarButtonsHtml = `<div class="editor-title-bar-buttons">
+            <button class="editor-title-bar-button editor-title-bar-close-button">${closeIcon}</button>
+        </div>`;
+        this.titleBarDiv.innerHTML = titleHtml + titlebarButtonsHtml;
 
         this.wrapper.appendChild(this.titleBarDiv);
 

@@ -1,3 +1,4 @@
+import './main.scss';
 import App from './core/App';
 
 import { LANGUAGE_WORKER_MAP } from '../shared/MonacoConfig';

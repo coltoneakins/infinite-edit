@@ -6,6 +6,8 @@ const webpack = require('webpack');
 const path = require('path');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 
@@ -69,7 +71,7 @@ const webviewConfig = {
     outputModule: true,
   },
   resolve: {
-    extensions: ['.ts', '.js']
+    extensions: ['.ts', '.js', '.scss', '.css']
   },
   module: {
     rules: [
@@ -86,15 +88,22 @@ const webviewConfig = {
         ]
       },
       {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader']
-      }
+        test: /\.(s[ac]ss|css)$/i,
+        use: [
+          MiniCssExtractPlugin.loader,
+          'css-loader',
+          'sass-loader',
+        ],
+      },
     ]
   },
   devtool: isDevelopment ? 'eval-source-map' : 'source-map',
   plugins: [
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+    }),
+    new MiniCssExtractPlugin({
+      filename: 'main.css',
     }),
     new MonacoWebpackPlugin({
       languages: ['javascript', 'typescript', 'json', 'css', 'html']

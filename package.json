@@ -62,6 +62,7 @@
   "devDependencies": {
     "@hediet/node-reload": "^0.10.0",
     "@hediet/std": "^0.6.0",
+    "@types/feather-icons": "^4.29.4",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/vscode": "^1.106.1",
@@ -69,6 +70,9 @@
     "@vscode/test-electron": "^2.5.2",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
+    "mini-css-extract-plugin": "^2.9.4",
+    "sass": "^1.97.1",
+    "sass-loader": "^16.0.6",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3",
@@ -78,6 +82,7 @@
   },
   "dependencies": {
     "css-loader": "^7.1.2",
+    "feather-icons": "^4.29.2",
     "monaco-editor": "^0.55.1",
     "monaco-editor-webpack-plugin": "^7.1.1",
     "pixi.js": "^8.14.3",
