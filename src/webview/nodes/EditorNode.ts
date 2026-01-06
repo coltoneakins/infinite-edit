@@ -121,6 +121,11 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             this.save();
         });
 
+        // Raise to front on mouse up
+        this.monacoInstance.onDidFocusEditorText(() => {
+            this.bringToFront();
+        });
+
         this.bringToFront();
     }
 
