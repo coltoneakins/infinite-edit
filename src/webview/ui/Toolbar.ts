@@ -58,7 +58,7 @@ export class Toolbar extends Container implements MaskProvider {
         searchIcon.innerHTML = feather.icons.search.toSvg({ width: 16, height: 16 });
 
         this.input = document.createElement('input');
-        this.input.placeholder = 'Search files...';
+        this.input.placeholder = 'Find files by name...';
 
         inputContainer.appendChild(searchIcon);
         inputContainer.appendChild(this.input);

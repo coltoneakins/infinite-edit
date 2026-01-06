@@ -52,6 +52,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         // Title Bar
         this.titleBarDiv = document.createElement('div');
         this.titleBarDiv.className = 'editor-title-bar'; // IMPORTANT: This must match the class in the SCSS file
+        this.titleBarDiv.style.marginTop = `-${this.borderThickness / 2}px`; // Offset by half the border thickness to make titlebar align with border
         this.titleBarDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
         this.titleBarDiv.style.height = `${this.titleHeight}px`;
         this.titleBarDiv.style.lineHeight = `${this.titleHeight}px`;
@@ -68,18 +69,27 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             height: 16,
             'stroke-width': 2.5
         });
-
         const titlebarButtonsHtml = `<div class="editor-title-bar-buttons">
             <button class="editor-title-bar-button editor-title-bar-close-button">${closeIcon}</button>
         </div>`;
         this.titleBarDiv.innerHTML = titleHtml + titlebarButtonsHtml;
+        // Add close button event listener
+        const titlebarCloseButton = this.titleBarDiv.querySelector('.editor-title-bar-close-button');
+        titlebarCloseButton?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.onClose();
+        });
+        // Also stop pointerdown to prevent dragging when clicking the close button
+        titlebarCloseButton?.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+        });
 
         this.wrapper.appendChild(this.titleBarDiv);
 
         // Setup Monaco Editor
         this.monacoDiv = document.createElement('div');
         this.monacoDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
-        this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2}px`;
+        this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2 + this.borderThickness / 2}px`; // Offset by half the border thickness to make editor align with border
         this.monacoDiv.style.pointerEvents = 'auto'; // Re-enable for the editor itself
 
         // Setup Monaco Editor
@@ -302,7 +312,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.titleBarDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
 
         this.monacoDiv.style.width = `${this.width_ - this.borderThickness * 2}px`;
-        this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2}px`;
+        this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2 + this.borderThickness / 2}px`; // Offset by half the border thickness to make editor align with border
 
         if (this.monacoInstance) {
             this.monacoInstance.layout();
@@ -329,6 +339,10 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             file: this.filePath,
             content: content
         });
+    }
+
+    private onClose() {
+        this.emit('close');
     }
 
     public getMaskLocalBounds(): Rectangle {

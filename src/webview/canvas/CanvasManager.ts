@@ -110,6 +110,7 @@ export class CanvasManager {
         editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
         editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;
 
+        editor.on('close', () => this.removeEditor(editor));
         this.nodes.push(editor);
 
         // MaskManager updates automatically or via Ticker
