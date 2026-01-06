@@ -142,6 +142,9 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     }
 
     private onDragStart(e: PointerEvent) {
+        if (e.button !== 0) {
+            return; // Only drag with left mouse button
+        }
         this.isDragging = true;
         this.titleBarDiv.setPointerCapture(e.pointerId);
         this.titleBarDiv.style.cursor = 'grabbing';
@@ -193,6 +196,10 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         let v_dir = '';
         let h_dir = '';
 
+        if (x < -threshold || x > w + threshold || y < -threshold || y > h + threshold) {
+            return null;
+        }
+
         if (y < threshold) {
             v_dir = 'n';
         } else if (y > h - threshold) {
@@ -226,8 +233,8 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     }
 
     private onWrapperPointerDown(e: PointerEvent) {
-        if (this.isDragging) {
-            return;
+        if (this.isDragging || e.button !== 0) {
+            return; // Only resize with left mouse button
         }
 
         const localPoint = this.toLocal({ x: e.clientX, y: e.clientY });
