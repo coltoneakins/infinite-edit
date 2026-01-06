@@ -3,12 +3,10 @@ import { MessageClient } from '../core/MessageClient';
 import { MaskManager, MaskProvider } from '../core/MaskManager';
 import * as feather from 'feather-icons';
 
-export class Toolbar extends Container implements MaskProvider {
+export class Toolbar extends DOMContainer implements MaskProvider {
     private messageClient: MessageClient;
-    private element!: HTMLDivElement;
     private input!: HTMLInputElement;
     private resultsList!: HTMLUListElement;
-    private domContainer!: DOMContainer;
     public readonly width_: number = 500;
     private maskManager: MaskManager;
 
@@ -69,13 +67,6 @@ export class Toolbar extends Container implements MaskProvider {
         this.resultsList.className = 'toolbar-results-list';
 
         this.element.appendChild(this.resultsList);
-
-        this.domContainer = new DOMContainer({
-            element: this.element
-        });
-        this.domContainer.eventMode = 'static';
-
-        this.addChild(this.domContainer);
 
         // Events
         this.input.addEventListener('input', this.onInput.bind(this));
