@@ -51,15 +51,17 @@ export class Grid extends Container implements MaskConsumer {
         // Fills are additive, so overlapping nodes naturally merge into a single hole,
         // solving the XOR/Even-Odd rule flickering that occurs with `cut()`.
         for (const provider of providers) {
-            const globalBounds = provider.getMaskGlobalBounds();
+            const globalBoundsList = provider.getMaskGlobalBounds();
 
-            // Convert global screen bounds to Grid's local space
-            const localTo = this.toLocal({ x: globalBounds.x, y: globalBounds.y });
-            const localBottomRight = this.toLocal({ x: globalBounds.x + globalBounds.width, y: globalBounds.y + globalBounds.height });
+            for (const globalBounds of globalBoundsList) {
+                // Convert global screen bounds to Grid's local space
+                const localTo = this.toLocal({ x: globalBounds.x, y: globalBounds.y });
+                const localBottomRight = this.toLocal({ x: globalBounds.x + globalBounds.width, y: globalBounds.y + globalBounds.height });
 
-            this.maskGraphics
-                .rect(localTo.x, localTo.y, localBottomRight.x - localTo.x, localBottomRight.y - localTo.y)
-                .fill(0xffffff); // Color is irrelevant for stencil masks
+                this.maskGraphics
+                    .rect(localTo.x, localTo.y, localBottomRight.x - localTo.x, localBottomRight.y - localTo.y)
+                    .fill(0xffffff); // Color is irrelevant for stencil masks
+            }
         }
     }
 

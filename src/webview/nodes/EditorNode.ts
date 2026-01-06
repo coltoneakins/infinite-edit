@@ -29,6 +29,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private static globalMaxZIndex: number = 10;
     private boundOnGlobalPointerMove = this.onGlobalPointerMove.bind(this);
     private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
+    private static lastContextMenuTriggeredNode: EditorNode | null = null;
 
     constructor(file: string, content: string, messageClient: MessageClient, maskManager: MaskManager) {
         super();
@@ -98,7 +99,9 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             language: LanguageManager.prepareLanguageForFile(this.filePath),
             theme: 'vs-dark',
             automaticLayout: true,
-            minimap: { enabled: false }
+            minimap: { enabled: false },
+            overflowWidgetsDomNode: this.wrapper,
+            fixedOverflowWidgets: true
         });
 
         this.wrapper.appendChild(this.monacoDiv);
@@ -119,6 +122,11 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         // Add Save Command (Ctrl+S)
         this.monacoInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             this.save();
+        });
+
+        // Set up context menu tracking
+        this.monacoInstance.onContextMenu(() => {
+            EditorNode.lastContextMenuTriggeredNode = this;
         });
 
         // Raise to front on mouse up
@@ -354,7 +362,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         return new Rectangle(this.x, this.y, this.width_, this.height_);
     }
 
-    public getMaskGlobalBounds(): Rectangle {
+    public getMaskGlobalBounds(): Rectangle[] {
         // Since we are using PixiJS, toGlobal handles the parent transforms (like zoom/pan)
         // for us. We calculate the Top-Left and Bottom-Right corners in global space.
 
@@ -368,12 +376,78 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         // rectangles are axis-aligned. If rotated, we'd need min/max of 4 corners.
         // EditorNodes are not rotated in this app.
 
-        return new Rectangle(
-            Math.min(topLeft.x, bottomRight.x),
-            Math.min(topLeft.y, bottomRight.y),
-            Math.abs(bottomRight.x - topLeft.x),
-            Math.abs(bottomRight.y - topLeft.y)
-        );
+        const regions: Rectangle[] = [
+            new Rectangle(
+                Math.min(topLeft.x, bottomRight.x),
+                Math.min(topLeft.y, bottomRight.y),
+                Math.abs(bottomRight.x - topLeft.x),
+                Math.abs(bottomRight.y - topLeft.y)
+            )
+        ];
+
+        // We look for common Monaco widget classes.
+        const widgetSelectors = '.monaco-menu-container, .monaco-menu, .context-view, .monaco-hover, .monaco-editor-hover, .suggest-widget';
+
+        // 1. Check for any children of the wrapper that are not the title bar or the editor div.
+        // These are typically Monaco overflow widgets (suggestions, hovers, etc.) 
+        // that we forced to be children of this.wrapper via overflowWidgetsDomNode.
+        const overflowWidgets = this.findWidgets(this.wrapper, widgetSelectors);
+        overflowWidgets.forEach(element => {
+            const rect = element.getBoundingClientRect();
+            // Ensure the child is actually visible/has dimensions
+            if (rect.width > 0 && rect.height > 0) {
+                const style = window.getComputedStyle(element);
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                    regions.push(new Rectangle(rect.left, rect.top, rect.width, rect.height));
+                }
+            }
+        });
+
+        // 2. Check for any global context menus or hovers that might belong to this editor session.
+        // Even with overflowWidgetsDomNode, some widgets might still be appended to body in certain versions/configs.
+        // We only check these if this node was the last one to trigger a context menu.
+        if (EditorNode.lastContextMenuTriggeredNode === this) {
+            const globalWidgets = this.findWidgets(document.body, widgetSelectors);
+            globalWidgets.forEach(element => {
+                // If it's already in our wrapper (handled above), we skip it to avoid duplicates
+                if (this.wrapper.contains(element)) {
+                    return;
+                }
+
+                const rect = element.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    const style = window.getComputedStyle(element);
+                    if (style.display !== 'none' && style.visibility !== 'hidden') {
+                        regions.push(new Rectangle(rect.left, rect.top, rect.width, rect.height));
+                    }
+                }
+            });
+        }
+
+        return regions;
+    }
+
+    /**
+     * Finds elements matching the selector within the root and any nested shadow roots.
+     * This is necessary because Monaco often uses Shadow DOM for its widgets.
+     */
+    private findWidgets(root: HTMLElement | Document, selector: string): HTMLElement[] {
+        const results: HTMLElement[] = [];
+
+        // Find matches in the current root
+        root.querySelectorAll(selector).forEach(el => results.push(el as HTMLElement));
+
+        // Find matches in all nested shadow roots
+        const allElements = root.querySelectorAll('*');
+        allElements.forEach(el => {
+            if (el.shadowRoot) {
+                el.shadowRoot.querySelectorAll(selector).forEach(match => {
+                    results.push(match as HTMLElement);
+                });
+            }
+        });
+
+        return results;
     }
 
     public get isInteracting(): boolean {

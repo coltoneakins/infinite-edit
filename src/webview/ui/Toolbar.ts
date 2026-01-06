@@ -31,12 +31,12 @@ export class Toolbar extends DOMContainer implements MaskProvider {
         return new Rectangle(0, 0, w, h);
     }
 
-    public getMaskGlobalBounds(): Rectangle {
+    public getMaskGlobalBounds(): Rectangle[] {
         const w = this.element ? this.element.offsetWidth : this.width_;
         const h = this.element ? this.element.offsetHeight : 50;
 
         const tl = this.toGlobal({ x: 0, y: 0 });
-        return new Rectangle(tl.x, tl.y, w, h);
+        return [new Rectangle(tl.x, tl.y, w, h)];
     }
 
     private init() {
