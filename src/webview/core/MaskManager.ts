@@ -3,6 +3,7 @@ import { Rectangle, IHitArea } from 'pixi.js';
 export interface MaskProvider {
     getMaskLocalBounds(): Rectangle;
     getMaskGlobalBounds(): Rectangle[];
+    getInteractionGlobalBounds(): Rectangle[];
 }
 
 export interface MaskConsumer {
@@ -61,8 +62,10 @@ export class MaskedHitArea implements IHitArea {
 
         // Must NOT be within any masked region (hole)
         for (const provider of this.maskManager.getProviders()) {
-            // Use GLOBAL bounds for hit testing because x,y are global (screen) coordinates
-            const boundsList = provider.getMaskGlobalBounds();
+            // Use Interaction bounds for hit testing because x,y are global (screen) coordinates
+            // This allows providers to define a larger area for capturing mouse events (like resizing handles)
+            // than what is visually masked for the grid.
+            const boundsList = provider.getInteractionGlobalBounds();
             for (const bounds of boundsList) {
                 if (bounds.contains(x, y)) {
                     return false;

@@ -183,37 +183,41 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     }
 
     private getResizeDirection(x: number, y: number): string | null {
-        // We want the hit area to be at least 15 screen pixels wide for usability, 
-        // but never smaller than the actual border thickness.
-        const screenThreshold = 15;
+        // thresholdOutside: how many screen pixels OUTSIDE the box to detect
+        // thresholdInside: how many world pixels INSIDE the box to detect (the border itself)
+        const thresholdOutsideScreen = 15;
         const worldScale = this.worldTransform.a || 1;
-        const localThreshold = screenThreshold / worldScale;
+        const thresholdOutside = thresholdOutsideScreen / worldScale;
+        const thresholdInside = this.borderThickness;
 
-        const threshold = Math.max(this.borderThickness + 2, localThreshold);
         const w = this.width_;
         const h = this.height_;
 
         let v_dir = '';
         let h_dir = '';
 
-        if (x < -threshold || x > w + threshold || y < -threshold || y > h + threshold) {
+        // Check if we are altogether too far from the node
+        if (x < -thresholdOutside || x > w + thresholdOutside || y < -thresholdOutside || y > h + thresholdOutside) {
             return null;
         }
 
-        if (y < threshold) {
+        // Vertical directions: Top edge (-thresholdOutside to border) or Bottom edge (h - border to h + thresholdOutside)
+        if (y >= -thresholdOutside && y <= thresholdInside) {
             v_dir = 'n';
-        } else if (y > h - threshold) {
+        } else if (y >= h - thresholdInside && y <= h + thresholdOutside) {
             v_dir = 's';
         }
 
-        if (x < threshold) {
+        // Horizontal directions: Left edge (-thresholdOutside to border) or Right edge (w - border to w + thresholdOutside)
+        if (x >= -thresholdOutside && x <= thresholdInside) {
             h_dir = 'w';
-        } else if (x > w - threshold) {
+        } else if (x >= w - thresholdInside && x <= w + thresholdOutside) {
             h_dir = 'e';
         }
 
         return (v_dir || h_dir) ? v_dir + h_dir : null;
     }
+
 
     private onWrapperPointerMove(e: PointerEvent) {
         if (this.isResizing || this.isDragging) {
@@ -370,14 +374,28 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     }
 
     public getMaskGlobalBounds(): Rectangle[] {
+        return this.getGlobalBoundsList(0);
+    }
+
+    public getInteractionGlobalBounds(): Rectangle[] {
+        // Use an 8px buffer for interaction to allow for resizing just outside the node
+        // as defined in our getResizeDirection logic.
+        return this.getGlobalBoundsList(15);
+    }
+
+    private getGlobalBoundsList(nodeBuffer: number): Rectangle[] {
+        const worldScale = this.worldTransform.a || 1;
+        // The buffer is in screen pixels, so we convert it to world space for local toGlobal calls
+        const localBuffer = nodeBuffer / worldScale;
+
         // Since we are using PixiJS, toGlobal handles the parent transforms (like zoom/pan)
         // for us. We calculate the Top-Left and Bottom-Right corners in global space.
 
-        // We use (0,0) as local top-left
-        const topLeft = this.toGlobal({ x: 0, y: 0 });
+        // We use (0,0) as local top-left, offset by buffer
+        const topLeft = this.toGlobal({ x: -localBuffer, y: -localBuffer });
 
-        // And (width, height) as local bottom-right
-        const bottomRight = this.toGlobal({ x: this.width_, y: this.height_ });
+        // And (width, height) as local bottom-right, offset by buffer
+        const bottomRight = this.toGlobal({ x: this.width_ + localBuffer, y: this.height_ + localBuffer });
 
         // Note: toGlobal accounts for rotation too, but assuming axis-aligned for now since
         // rectangles are axis-aligned. If rotated, we'd need min/max of 4 corners.

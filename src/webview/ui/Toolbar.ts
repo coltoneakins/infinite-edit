@@ -39,6 +39,10 @@ export class Toolbar extends DOMContainer implements MaskProvider {
         return [new Rectangle(tl.x, tl.y, w, h)];
     }
 
+    public getInteractionGlobalBounds(): Rectangle[] {
+        return this.getMaskGlobalBounds();
+    }
+
     private init() {
         this.zIndex = 1000;
 
