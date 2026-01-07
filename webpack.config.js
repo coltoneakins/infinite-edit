@@ -95,6 +95,13 @@ const webviewConfig = {
           'sass-loader',
         ],
       },
+      {
+        test: /\.(ttf|woff|woff2)$/i,
+        type: 'asset/resource',
+        generator: {
+          filename: '[name][ext]'
+        }
+      },
     ]
   },
   devtool: isDevelopment ? 'eval-source-map' : 'source-map',

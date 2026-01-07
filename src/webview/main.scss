@@ -3,6 +3,7 @@
 @use "./nodes/EditorNode.scss";
 @use "./ui/Toolbar.scss";
 
+@import "~@vscode/codicons/dist/codicon.css";
 
 body {
     margin: 0;

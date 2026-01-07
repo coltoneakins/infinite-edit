@@ -1,11 +1,9 @@
-import { Container, DOMContainer, Graphics, FederatedPointerEvent, HTMLText, HTMLTextStyle, Rectangle } from 'pixi.js';
+import { Container, DOMContainer, Graphics, FederatedPointerEvent, Rectangle } from 'pixi.js';
 import * as monaco from 'monaco-editor';
 import { LanguageManager } from '../core/LanguageManager';
 import { MessageClient } from '../core/MessageClient';
 
 import { MaskManager, MaskProvider } from '../core/MaskManager';
-
-import * as feather from 'feather-icons';
 
 export class EditorNode extends DOMContainer implements MaskProvider {
     private wrapper: HTMLDivElement;
@@ -64,14 +62,11 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         const dirName = file.includes('/') ? file.substring(0, file.lastIndexOf('/') + 1) : '';
         const titleHtml = `<div class="editor-title-bar-title" title="${dirName}${fileName}">${fileName}</div>`;
 
-        // Feather Close Icon
-        const closeIcon = feather.icons.x.toSvg({
-            width: 16,
-            height: 16,
-            'stroke-width': 2.5
-        });
+        // Codicon Close Icon
         const titlebarButtonsHtml = `<div class="editor-title-bar-buttons">
-            <button class="editor-title-bar-button editor-title-bar-close-button">${closeIcon}</button>
+            <button class="editor-title-bar-button editor-title-bar-close-button">
+                <i class="codicon codicon-close"></i>
+            </button>
         </div>`;
         this.titleBarDiv.innerHTML = titleHtml + titlebarButtonsHtml;
         // Add close button event listener
@@ -378,7 +373,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     }
 
     public getInteractionGlobalBounds(): Rectangle[] {
-        // Use an 8px buffer for interaction to allow for resizing just outside the node
+        // Use an 15px buffer for interaction to allow for resizing just outside the node
         // as defined in our getResizeDirection logic.
         return this.getGlobalBoundsList(15);
     }

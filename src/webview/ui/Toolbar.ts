@@ -1,7 +1,6 @@
 import { Container, DOMContainer, Rectangle } from 'pixi.js';
 import { MessageClient } from '../core/MessageClient';
 import { MaskManager, MaskProvider } from '../core/MaskManager';
-import * as feather from 'feather-icons';
 
 export class Toolbar extends DOMContainer implements MaskProvider {
     private messageClient: MessageClient;
@@ -57,10 +56,10 @@ export class Toolbar extends DOMContainer implements MaskProvider {
         // Search Icon
         const searchIcon = document.createElement('div');
         searchIcon.className = 'toolbar-search-icon';
-        searchIcon.innerHTML = feather.icons.search.toSvg({ width: 16, height: 16 });
+        searchIcon.innerHTML = `<i class="codicon codicon-search"></i>`;
 
         this.input = document.createElement('input');
-        this.input.placeholder = 'Find files by name...';
+        this.input.placeholder = 'Search files...';
 
         inputContainer.appendChild(searchIcon);
         inputContainer.appendChild(this.input);

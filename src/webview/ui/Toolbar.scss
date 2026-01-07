@@ -23,6 +23,11 @@
             pointer-events: none;
             display: flex;
             align-items: center;
+            justify-content: center;
+
+            .codicon {
+                font-size: 16px;
+            }
         }
 
         input {
