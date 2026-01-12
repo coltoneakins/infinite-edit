@@ -1,12 +1,14 @@
 import { Application } from 'pixi.js';
 import { CanvasManager } from '../canvas/CanvasManager';
 import { MessageClient } from '../core/MessageClient';
+import { MaskManager } from './MaskManager';
 
 class App {
 
     private app!: Application;
     private canvasManager!: CanvasManager;
     private messageClient!: MessageClient;
+    private maskManager!: MaskManager;
     public ready: Promise<void>;
 
     constructor() {
@@ -22,9 +24,14 @@ class App {
             autoDensity: true,
         });
 
+        // Initialize MaskManager
+        this.maskManager = new MaskManager();
+
         const container = document.getElementById('canvas-container');
         if (container) {
             container.appendChild(this.app.canvas);
+            // Add seti-icons class to body for icon styles
+            document.body.classList.add('seti-icons');
             // IMPORTANT:We listen on the canvas again, but we use the parent 
             // container for the move listener to capture the user's intent 
             // and toggle pointer-events accordingly.

@@ -42,10 +42,8 @@
             margin-left: 5px;
             flex-shrink: 0;
 
-            svg {
-                width: 20px;
-                height: 20px;
-                fill: currentColor;
+            &.icon::before {
+                font-size: 18px;
             }
         }
 

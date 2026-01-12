@@ -1,0 +1,3 @@
+[submodule "assets/seti-ui"]
+	path = assets/seti-ui
+	url = git@github.com:jesseweed/seti-ui.git

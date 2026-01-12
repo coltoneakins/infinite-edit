@@ -7,6 +7,7 @@ const path = require('path');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const { execSync } = require('child_process');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -71,7 +72,10 @@ const webviewConfig = {
     outputModule: true,
   },
   resolve: {
-    extensions: ['.ts', '.js', '.scss', '.css']
+    extensions: ['.ts', '.js', '.scss', '.less', '.css'],
+    alias: {
+      'atom://seti-ui': path.resolve(__dirname, 'assets/seti-ui')
+    }
   },
   module: {
     rules: [
@@ -88,6 +92,14 @@ const webviewConfig = {
         ]
       },
       {
+        test: /\.less$/i,
+        use: [
+          MiniCssExtractPlugin.loader,
+          'css-loader',
+          'less-loader',
+        ],
+      },
+      {
         test: /\.(s[ac]ss|css)$/i,
         use: [
           MiniCssExtractPlugin.loader,
@@ -96,10 +108,10 @@ const webviewConfig = {
         ],
       },
       {
-        test: /\.(ttf|woff|woff2)$/i,
+        test: /\.(ttf|woff|woff2|eot|svg)$/i,
         type: 'asset/resource',
         generator: {
-          filename: '[name][ext]'
+          filename: 'assets/[name].[hash:8][ext]'
         }
       },
     ]

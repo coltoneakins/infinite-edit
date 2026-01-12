@@ -1,0 +1,16 @@
+// Bridge to use Seti UI icons from the assets folder
+// We use the atom://seti-ui alias defined in webpack.config.js
+
+@import "../../../assets/seti-ui/styles/ui-variables.less";
+@import "../../../assets/seti-ui/styles/ui-mixins.less";
+@import "../../../assets/seti-ui/styles/_fonts/seti.less";
+@import "../../../assets/seti-ui/styles/components/icons/mapping.less";
+
+// We need to apply the .icon mixin settings for the .icon class
+// Seti UI for Atom expects .icon to have data-name attribute
+body {
+    &.seti-icons {
+        // This class enables the icon mapping rules
+        display: block;
+    }
+}

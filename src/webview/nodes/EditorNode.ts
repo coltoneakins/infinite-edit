@@ -4,7 +4,6 @@ import { LanguageManager } from '../core/LanguageManager';
 import { MessageClient } from '../core/MessageClient';
 
 import { MaskManager, MaskProvider } from '../core/MaskManager';
-import { getIcon } from 'seti-icons';
 
 export class EditorNode extends DOMContainer implements MaskProvider {
     private wrapper: HTMLDivElement;
@@ -70,23 +69,8 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             </button>
         </div>`;
 
-        // File Icon using seti-icons
-        const fileIconData = getIcon(fileName);
-        const setiColors: Record<string, string> = {
-            blue: '#4e93ad',
-            grey: '#41535b',
-            'grey-light': '#64808f',
-            green: '#75b43b',
-            orange: '#d9702a',
-            pink: '#b062b0',
-            purple: '#a074c4',
-            red: '#c03431',
-            yellow: '#e3c453',
-            ignore: '#41535b',
-            white: '#d4d4d4'
-        };
-        const iconColor = setiColors[fileIconData.color] || setiColors.white;
-        const fileIconHtml = `<div class="editor-title-bar-icon" style="color: ${iconColor}">${fileIconData.svg}</div>`;
+        // File Icon using local seti-ui assets
+        const fileIconHtml = `<div class="editor-title-bar-icon icon" data-name="${fileName}"></div>`;
 
         this.titleBarDiv.innerHTML = fileIconHtml + titleHtml + titlebarButtonsHtml;
         // Add close button event listener

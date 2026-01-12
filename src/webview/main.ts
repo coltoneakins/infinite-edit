@@ -1,4 +1,5 @@
 import './main.scss';
+import './styles/seti.less';
 import App from './core/App';
 
 import { LANGUAGE_WORKER_MAP } from '../shared/MonacoConfig';
