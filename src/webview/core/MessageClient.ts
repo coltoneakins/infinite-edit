@@ -32,7 +32,7 @@ export class MessageClient {
         });
     }
 
-    public request(command: string, body: any = {}): Promise<any> {
+    public sendRequest(command: string, body: any = {}): Promise<any> {
         const requestId = (this.requestIdCounter++).toString();
         return new Promise((resolve, reject) => {
             this.pendingRequests.set(requestId, { resolve, reject });

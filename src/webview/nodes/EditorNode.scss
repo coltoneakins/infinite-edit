@@ -7,6 +7,11 @@
     padding: 0;
     box-sizing: border-box;
 
+    &:hover {
+        border-color: #007acc;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    }
+
     // Hit area expansion for resizing
     &::after {
         content: '';

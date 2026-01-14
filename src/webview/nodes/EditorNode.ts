@@ -15,6 +15,8 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private width_: number = 400;
     private height_: number = 600;
     private titleHeight: number = 30;
+    private uri: string;
+    private isUpdatingFromBackend: boolean = false;
     private filePath: string;
     private messageClient: MessageClient;
     private maskManager: MaskManager;
@@ -29,11 +31,12 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
     private static lastContextMenuTriggeredNode: EditorNode | null = null;
 
-    constructor(file: string, content: string, messageClient: MessageClient, maskManager: MaskManager) {
+    constructor(file: string, content: string, uri: string, messageClient: MessageClient, maskManager: MaskManager) {
         super();
         this.messageClient = messageClient;
         this.maskManager = maskManager;
         this.filePath = file;
+        this.uri = uri;
         this.eventMode = 'static';
 
         // Register as a provider of mask regions (holes)
@@ -62,9 +65,12 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         const dirName = file.includes('/') ? file.substring(0, file.lastIndexOf('/') + 1) : '';
         const titleHtml = `<div class="editor-title-bar-title" title="${dirName}${fileName}">${fileName}</div>`;
 
-        // Codicon Close Icon
+        // Codicon Buttons
         const titlebarButtonsHtml = `<div class="editor-title-bar-buttons">
-            <button class="editor-title-bar-button editor-title-bar-close-button">
+            <button class="editor-title-bar-button editor-title-bar-native-button" title="Open in Native Editor">
+                <i class="codicon codicon-go-to-file"></i>
+            </button>
+            <button class="editor-title-bar-button editor-title-bar-close-button" title="Close">
                 <i class="codicon codicon-close"></i>
             </button>
         </div>`;
@@ -73,7 +79,17 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         const fileIconHtml = `<div class="editor-title-bar-icon icon" data-name="${fileName}"></div>`;
 
         this.titleBarDiv.innerHTML = fileIconHtml + titleHtml + titlebarButtonsHtml;
-        // Add close button event listener
+
+        // Add button event listeners
+        const titlebarNativeButton = this.titleBarDiv.querySelector('.editor-title-bar-native-button');
+        titlebarNativeButton?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openInNativeEditor();
+        });
+        titlebarNativeButton?.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+        });
+
         const titlebarCloseButton = this.titleBarDiv.querySelector('.editor-title-bar-close-button');
         titlebarCloseButton?.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -92,18 +108,43 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2 + this.borderThickness / 2}px`; // Offset by half the border thickness to make editor align with border
         this.monacoDiv.style.pointerEvents = 'auto'; // Re-enable for the editor itself
 
+        // Setup Monaco Model with URI
+        const monacoUri = monaco.Uri.parse(uri);
+        let model = monaco.editor.getModel(monacoUri);
+        if (!model) {
+            model = monaco.editor.createModel(content, LanguageManager.prepareLanguageForFile(this.filePath), monacoUri);
+        }
+
         // Setup Monaco Editor
         this.monacoInstance = monaco.editor.create(this.monacoDiv, {
-            value: content,
-            language: LanguageManager.prepareLanguageForFile(this.filePath),
+            model: model,
             theme: 'vs-dark',
             automaticLayout: true,
             minimap: { enabled: false },
+            glyphMargin: true,
             overflowWidgetsDomNode: this.wrapper,
             fixedOverflowWidgets: true
         });
 
         this.wrapper.appendChild(this.monacoDiv);
+
+        // Listen for changes and send to backend
+        this.monacoInstance.onDidChangeModelContent(() => {
+            if (this.isUpdatingFromBackend) {
+                return;
+            }
+            this.onContentChanged();
+        });
+
+        // Toggle breakpoints on gutter click
+        this.monacoInstance.onMouseDown((e) => {
+            if (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+                const lineNumber = e.target.position?.lineNumber;
+                if (lineNumber) {
+                    this.toggleBreakpoint(lineNumber);
+                }
+            }
+        });
 
         // Set up interaction
         this.titleBarDiv.addEventListener('pointerdown', this.onDragStart.bind(this));
@@ -134,6 +175,74 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         });
 
         this.bringToFront();
+    }
+
+    private contentChangeTimeout: any = null;
+    private onContentChanged() {
+        if (this.contentChangeTimeout) {
+            clearTimeout(this.contentChangeTimeout);
+        }
+
+        this.contentChangeTimeout = setTimeout(() => {
+            const content = this.monacoInstance.getValue();
+            this.messageClient.send('updateFile', {
+                file: this.filePath,
+                content: content
+            });
+            this.contentChangeTimeout = null;
+        }, 300); // 300ms debounce
+    }
+
+    public updateContent(content: string) {
+        if (this.monacoInstance.getValue() === content) {
+            return;
+        }
+        this.isUpdatingFromBackend = true;
+        this.monacoInstance.setValue(content);
+        this.isUpdatingFromBackend = false;
+    }
+
+    public setDiagnostics(diagnostics: any[]) {
+        const model = this.monacoInstance.getModel();
+        if (model) {
+            monaco.editor.setModelMarkers(model, 'vscode', diagnostics);
+        }
+    }
+
+    private breakpointDecorations: string[] = [];
+    public setBreakpoints(breakpoints: number[]) {
+        const model = this.monacoInstance.getModel();
+        if (!model) {
+            return;
+        }
+
+        const newDecorations: monaco.editor.IModelDeltaDecoration[] = breakpoints.map(line => ({
+            range: new monaco.Range(line, 1, line, 1),
+            options: {
+                isFullWidth: true,
+                glyphMarginClassName: 'editor-breakpoint-glyph', // Need to add CSS for this
+                stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
+            }
+        }));
+
+        this.breakpointDecorations = this.monacoInstance.deltaDecorations(this.breakpointDecorations, newDecorations);
+    }
+
+    private toggleBreakpoint(lineNumber: number) {
+        this.messageClient.send('toggleBreakpoint', {
+            file: this.filePath,
+            line: lineNumber
+        });
+    }
+
+    private openInNativeEditor() {
+        this.messageClient.send('openInNativeEditor', {
+            file: this.filePath
+        });
+    }
+
+    public getFilePath(): string {
+        return this.filePath;
     }
 
     private setAlpha(alpha: number) {

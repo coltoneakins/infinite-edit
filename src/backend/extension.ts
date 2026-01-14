@@ -3,6 +3,8 @@ import { InfiniteEditPanel } from './panels/InfiniteEditPanel';
 import { SidebarProvider } from './providers/SidebarProvider';
 import { openCanvasCommand } from './commands/OpenCanvasCommand';
 import { openFileCommand } from './commands/OpenFileCommand';
+import { InfiniteFileSystemProvider } from './providers/FileSystemProvider';
+import { LSPProvider } from './providers/LSPProvider';
 // Enable Hot Reload in development mode
 if (process.env.NODE_ENV === "development") {
     const { enableHotReload } = require("@hediet/node-reload/node");
@@ -21,6 +23,15 @@ export function activate(context: vscode.ExtensionContext) {
     const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri));
     const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri));
     context.subscriptions.push(openCanvasDisposable, openFileDisposable);
+
+    // Register the infinite file system provider
+    const fileSystemProvider = new InfiniteFileSystemProvider();
+    context.subscriptions.push(
+        vscode.workspace.registerFileSystemProvider('infinite', fileSystemProvider, { isCaseSensitive: true })
+    );
+
+    // Register LSP bridge providers
+    LSPProvider.register(context);
 
     // Register the sidebar provider
     const sidebarProvider = new SidebarProvider(context.extensionUri);

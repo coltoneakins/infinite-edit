@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { MessageBus } from '../services/MessageBus';
 import { MONACO_WORKER_FILES } from '../../shared/MonacoConfig';
+import { InfiniteFileSystemProvider } from '../providers/FileSystemProvider';
 
 export class InfiniteEditPanel {
     public static currentPanel: InfiniteEditPanel | undefined;
@@ -88,6 +89,166 @@ export class InfiniteEditPanel {
                 vscode.window.showErrorMessage(`Failed to open file: ${message.path}`);
             }
         });
+
+        // Handle text changes from the webview
+        this._messageBus.register('updateFile', async (message) => {
+            const { file, content } = message;
+            const uri = InfiniteFileSystemProvider.getUri(file);
+            try {
+                const document = await vscode.workspace.openTextDocument(uri);
+                const edit = new vscode.WorkspaceEdit();
+                const fullRange = new vscode.Range(
+                    document.positionAt(0),
+                    document.positionAt(document.getText().length)
+                );
+                edit.replace(uri, fullRange, content);
+                await vscode.workspace.applyEdit(edit);
+            } catch (e) {
+                console.error('Failed to update file:', e);
+            }
+        });
+
+        this._messageBus.register('provideDefinition', async (message) => {
+            const { file, position } = message;
+            const uri = InfiniteFileSystemProvider.getUri(file);
+            const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
+            try {
+                const result = await vscode.commands.executeCommand<any>(
+                    'vscode.executeDefinitionProvider',
+                    uri,
+                    pos
+                );
+                return result;
+            } catch (e) {
+                console.error('Failed to provide definition:', e);
+                return null;
+            }
+        });
+
+        this._messageBus.register('provideHover', async (message) => {
+            const { file, position } = message;
+            const uri = InfiniteFileSystemProvider.getUri(file);
+            const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
+            try {
+                const result = await vscode.commands.executeCommand<any>(
+                    'vscode.executeHoverProvider',
+                    uri,
+                    pos
+                );
+                return result ? result[0] : null; // Hover provider returns array of hovers
+            } catch (e) {
+                console.error('Failed to provide hover:', e);
+                return null;
+            }
+        });
+
+        this._messageBus.register('provideCompletions', async (message) => {
+            const { file, position } = message;
+            const uri = InfiniteFileSystemProvider.getUri(file);
+            const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
+            try {
+                const result = await vscode.commands.executeCommand<any>(
+                    'vscode.executeCompletionItemProvider',
+                    uri,
+                    pos
+                );
+                return result;
+            } catch (e) {
+                console.error('Failed to provide completions:', e);
+                return null;
+            }
+        });
+
+        this._messageBus.register('toggleBreakpoint', async (message) => {
+            const { file, line } = message;
+            const uri = InfiniteFileSystemProvider.getUri(file);
+            const breakpoint = vscode.debug.breakpoints.find(b =>
+                b instanceof vscode.SourceBreakpoint &&
+                b.location.uri.toString() === uri.toString() &&
+                b.location.range.start.line === line - 1
+            );
+
+            if (breakpoint) {
+                vscode.debug.removeBreakpoints([breakpoint]);
+            } else {
+                const newBreakpoint = new vscode.SourceBreakpoint(
+                    new vscode.Location(uri, new vscode.Position(line - 1, 0))
+                );
+                vscode.debug.addBreakpoints([newBreakpoint]);
+            }
+        });
+
+        this._messageBus.register('openInNativeEditor', async (message) => {
+            const { file } = message;
+            const uri = vscode.Uri.file(file);
+            await vscode.window.showTextDocument(uri, { preview: false });
+        });
+
+        // Forward VS Code document changes to the webview
+        vscode.workspace.onDidChangeTextDocument(e => {
+            if (e.document.uri.scheme === 'infinite') {
+                this._panel.webview.postMessage({
+                    command: 'didChangeTextDocument',
+                    file: e.document.uri.path,
+                    content: e.document.getText()
+                });
+            }
+        }, null, this._disposables);
+
+        // Forward diagnostics (errors/warnings) to the webview
+        vscode.languages.onDidChangeDiagnostics(e => {
+            for (const uri of e.uris) {
+                if (uri.scheme === 'infinite') {
+                    const diagnostics = vscode.languages.getDiagnostics(uri);
+                    this._panel.webview.postMessage({
+                        command: 'setDiagnostics',
+                        file: uri.path,
+                        diagnostics: diagnostics.map(d => ({
+                            message: d.message,
+                            severity: this._mapSeverity(d.severity),
+                            startLineNumber: d.range.start.line + 1,
+                            startColumn: d.range.start.character + 1,
+                            endLineNumber: d.range.end.line + 1,
+                            endColumn: d.range.end.character + 1
+                        }))
+                    });
+                }
+            }
+        }, null, this._disposables);
+
+        // Forward breakpoint changes
+        vscode.debug.onDidChangeBreakpoints(e => {
+            const affectedFiles = new Set<string>();
+            [...e.added, ...e.removed, ...e.changed].forEach(b => {
+                if (b instanceof vscode.SourceBreakpoint && b.location.uri.scheme === 'infinite') {
+                    affectedFiles.add(b.location.uri.path);
+                }
+            });
+
+            for (const filePath of affectedFiles) {
+                const uri = InfiniteFileSystemProvider.getUri(filePath);
+                const fileBreakpoints = vscode.debug.breakpoints.filter(b =>
+                    b instanceof vscode.SourceBreakpoint &&
+                    b.location.uri.toString() === uri.toString()
+                ).map(b => (b as vscode.SourceBreakpoint).location.range.start.line + 1);
+
+                this._panel.webview.postMessage({
+                    command: 'setBreakpoints',
+                    file: filePath,
+                    breakpoints: fileBreakpoints
+                });
+            }
+        }, null, this._disposables);
+    }
+
+    private _mapSeverity(severity: vscode.DiagnosticSeverity): number {
+        switch (severity) {
+            case vscode.DiagnosticSeverity.Error: return 8; // monaco.MarkerSeverity.Error
+            case vscode.DiagnosticSeverity.Warning: return 4; // monaco.MarkerSeverity.Warning
+            case vscode.DiagnosticSeverity.Information: return 2; // monaco.MarkerSeverity.Info
+            case vscode.DiagnosticSeverity.Hint: return 1; // monaco.MarkerSeverity.Hint
+            default: return 1;
+        }
     }
 
 
@@ -118,7 +279,7 @@ export class InfiniteEditPanel {
             style-src ${webview.cspSource} 'unsafe-inline' ${isDevelopment ? devServerUrl : ''}; 
             img-src ${webview.cspSource} data: ${isDevelopment ? devServerUrl : ''}; 
             font-src ${webview.cspSource} data: ${isDevelopment ? devServerUrl : ''};
-            connect-src ${isDevelopment ? `${devServerUrl} ws://${devServerUrl.replace('http://', '')}` : ''};
+            connect-src ${isDevelopment ? `${devServerUrl} ws://${devServerUrl.replace('http://', '')} blob:` : 'blob:'};
             worker-src blob: ${isDevelopment ? devServerUrl : ''};`.replace(/\s+/g, ' ').trim();
 
         return `<!DOCTYPE html>
@@ -161,7 +322,10 @@ export class InfiniteEditPanel {
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
-                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
+                localResourceRoots: [
+                    vscode.Uri.joinPath(extensionUri, 'dist'),
+                    vscode.Uri.joinPath(extensionUri, 'assets')
+                ],
                 retainContextWhenHidden: true
             }
         );
@@ -171,14 +335,16 @@ export class InfiniteEditPanel {
 
         InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri);
 
-        // Pin the panel by default
+        // Pin the panel (do this after creating the panel instance and setting HTML)
         vscode.commands.executeCommand('workbench.action.pinEditor', panel);
     }
 
     public openFile(document: vscode.TextDocument) {
+        const infiniteUri = InfiniteFileSystemProvider.getUri(document.fileName);
         const message = {
             command: 'openFile',
             file: document.fileName,
+            uri: infiniteUri.toString(),
             content: document.getText()
         };
 

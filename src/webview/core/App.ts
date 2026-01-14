@@ -2,6 +2,7 @@ import { Application } from 'pixi.js';
 import { CanvasManager } from '../canvas/CanvasManager';
 import { MessageClient } from '../core/MessageClient';
 import { MaskManager } from './MaskManager';
+import { LSPBridge } from './LSPBridge';
 
 class App {
 
@@ -59,6 +60,9 @@ class App {
         // This is where the frontend handles message passing
         this.messageClient = new MessageClient();
 
+        // Initialize LSP Bridge
+        new LSPBridge(this.messageClient);
+
         this.canvasManager = new CanvasManager(this.app, this.messageClient);
 
         // Handle window resize
@@ -73,7 +77,16 @@ class App {
             const message = event.data;
             switch (message.command) {
                 case 'openFile':
-                    this.canvasManager.addEditor(message.file, message.content);
+                    this.canvasManager.addEditor(message.file, message.content, message.uri);
+                    break;
+                case 'didChangeTextDocument':
+                    this.canvasManager.updateEditorContent(message.file, message.content);
+                    break;
+                case 'setDiagnostics':
+                    this.canvasManager.setEditorDiagnostics(message.file, message.diagnostics);
+                    break;
+                case 'setBreakpoints':
+                    this.canvasManager.setEditorBreakpoints(message.file, message.breakpoints);
                     break;
             }
         });

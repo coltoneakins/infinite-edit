@@ -104,8 +104,17 @@ export class CanvasManager {
         this.updateToolbarPosition();
     }
 
-    public addEditor(file: string, content: string) {
-        const editor = new EditorNode(file, content, this.messageClient!, this.maskManager);
+    public addEditor(file: string, content: string, uri: string) {
+        // If an editor for this file already exists, just update its content if needed, 
+        // or we could potentially prevent duplicates. For now, let's allow duplicates 
+        // if they have different context, but it's better to just focus if it exists.
+        const existing = this.nodes.find(n => n.getFilePath() === file);
+        if (existing) {
+            existing.updateContent(content);
+            return;
+        }
+
+        const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager);
         this.contentContainer.addChild(editor);
         editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
         editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;
@@ -115,6 +124,27 @@ export class CanvasManager {
 
         // MaskManager updates automatically or via Ticker
         this.maskManager.update();
+    }
+
+    public updateEditorContent(file: string, content: string) {
+        const editor = this.nodes.find(n => n.getFilePath() === file);
+        if (editor) {
+            editor.updateContent(content);
+        }
+    }
+
+    public setEditorDiagnostics(file: string, diagnostics: any[]) {
+        const editor = this.nodes.find(n => n.getFilePath() === file);
+        if (editor) {
+            editor.setDiagnostics(diagnostics);
+        }
+    }
+
+    public setEditorBreakpoints(file: string, breakpoints: number[]) {
+        const editor = this.nodes.find(n => n.getFilePath() === file);
+        if (editor) {
+            editor.setBreakpoints(breakpoints);
+        }
     }
 
     public removeEditor(editor: EditorNode) {
