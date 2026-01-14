@@ -59,4 +59,8 @@ export class InfiniteFileSystemProvider implements vscode.FileSystemProvider {
     public static getUri(realPath: string): vscode.Uri {
         return vscode.Uri.parse(`infinite:${realPath}`);
     }
+
+    public notifyFileChanged(uri: vscode.Uri) {
+        this._onDidChangeFile.fire([{ type: vscode.FileChangeType.Changed, uri }]);
+    }
 }

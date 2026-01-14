@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import { InfiniteEditPanel } from "../panels/InfiniteEditPanel";
+import { InfiniteFileSystemProvider } from '../providers/FileSystemProvider';
 
-export const openFileCommand = (extensionUri: vscode.Uri) => {
+export const openFileCommand = (extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider) => {
     return async () => {
         if (!InfiniteEditPanel.currentPanel) {
-            InfiniteEditPanel.createOrShow(extensionUri);
+            InfiniteEditPanel.createOrShow(extensionUri, fileSystemProvider);
         }
 
         const editor = vscode.window.activeTextEditor;

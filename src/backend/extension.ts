@@ -19,16 +19,16 @@ export function activate(context: vscode.ExtensionContext) {
 
     console.log('Infinite Edit: Activated');
 
-    // Register commands for VS Code's command palette
-    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri));
-    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri));
-    context.subscriptions.push(openCanvasDisposable, openFileDisposable);
-
     // Register the infinite file system provider
     const fileSystemProvider = new InfiniteFileSystemProvider();
     context.subscriptions.push(
         vscode.workspace.registerFileSystemProvider('infinite', fileSystemProvider, { isCaseSensitive: true })
     );
+
+    // Register commands for VS Code's command palette
+    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri, fileSystemProvider));
+    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri, fileSystemProvider));
+    context.subscriptions.push(openCanvasDisposable, openFileDisposable);
 
     // Register LSP bridge providers
     LSPProvider.register(context);

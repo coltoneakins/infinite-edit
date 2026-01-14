@@ -7,15 +7,17 @@ export class InfiniteEditPanel {
     public static currentPanel: InfiniteEditPanel | undefined;
     private readonly _extensionUri: vscode.Uri;
     private readonly _panel: vscode.WebviewPanel;
+    private readonly _fileSystemProvider: InfiniteFileSystemProvider;
     private _disposables: vscode.Disposable[] = [];
     private _isReady: boolean = false;
     private _pendingMessages: any[] = [];
 
     private readonly _messageBus: MessageBus = new MessageBus();
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider) {
         this._panel = panel;
         this._extensionUri = extensionUri;
+        this._fileSystemProvider = fileSystemProvider;
         this._messageBus.setWebview(this._panel.webview);
 
         // Set the webview's initial html content
@@ -93,7 +95,9 @@ export class InfiniteEditPanel {
         // Handle text changes from the webview
         this._messageBus.register('updateFile', async (message) => {
             const { file, content } = message;
-            const uri = InfiniteFileSystemProvider.getUri(file);
+            // Use the REAL file URI to apply edits, so it shows up in the standard editor
+            // and doesn't create a duplicate tab for the 'infinite' scheme.
+            const uri = vscode.Uri.file(file);
             try {
                 const document = await vscode.workspace.openTextDocument(uri);
                 const edit = new vscode.WorkspaceEdit();
@@ -186,12 +190,19 @@ export class InfiniteEditPanel {
 
         // Forward VS Code document changes to the webview
         vscode.workspace.onDidChangeTextDocument(e => {
-            if (e.document.uri.scheme === 'infinite') {
+            const scheme = e.document.uri.scheme;
+            if (scheme === 'infinite' || scheme === 'file') {
+                const filePath = scheme === 'file' ? e.document.uri.fsPath : e.document.uri.path;
                 this._panel.webview.postMessage({
                     command: 'didChangeTextDocument',
-                    file: e.document.uri.path,
+                    file: filePath,
                     content: e.document.getText()
                 });
+
+                // If a real file changed, notify the provider to update virtual documents
+                if (scheme === 'file') {
+                    this._fileSystemProvider.notifyFileChanged(InfiniteFileSystemProvider.getUri(filePath));
+                }
             }
         }, null, this._disposables);
 
@@ -303,7 +314,7 @@ export class InfiniteEditPanel {
     }
 
 
-    public static createOrShow(extensionUri: vscode.Uri) {
+    public static createOrShow(extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -333,7 +344,7 @@ export class InfiniteEditPanel {
         // Set the icon for the editor tab
         panel.iconPath = vscode.Uri.joinPath(extensionUri, 'assets', 'icon.png');
 
-        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri);
+        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri, fileSystemProvider);
 
         // Pin the panel (do this after creating the panel instance and setting HTML)
         vscode.commands.executeCommand('workbench.action.pinEditor', panel);
