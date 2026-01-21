@@ -31,7 +31,19 @@ export class LSPProvider {
                     const realUri = this.mapToRealUri(document.uri);
                     return vscode.commands.executeCommand('vscode.executeDocumentSymbolProvider', realUri) as Thenable<vscode.DocumentSymbol[]>;
                 }
-            })
+            }),
+            vscode.languages.registerInlayHintsProvider(selector, {
+                provideInlayHints: (document, range, token) => {
+                    const realUri = this.mapToRealUri(document.uri);
+                    return vscode.commands.executeCommand('vscode.executeInlayHintProvider', realUri, range) as Thenable<vscode.InlayHint[]>;
+                }
+            }),
+            vscode.languages.registerSignatureHelpProvider(selector, {
+                provideSignatureHelp: (document, position, token, context) => {
+                    const realUri = this.mapToRealUri(document.uri);
+                    return vscode.commands.executeCommand('vscode.executeSignatureHelpProvider', realUri, position) as Thenable<vscode.SignatureHelp>;
+                }
+            }, { triggerCharacters: ['(', ','], retriggerCharacters: [','] })
         );
     }
 

@@ -31,7 +31,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
     private static lastContextMenuTriggeredNode: EditorNode | null = null;
 
-    constructor(file: string, content: string, uri: string, messageClient: MessageClient, maskManager: MaskManager) {
+    constructor(file: string, content: string, uri: string, messageClient: MessageClient, maskManager: MaskManager, initialDiagnostics: any[] = []) {
         super();
         this.messageClient = messageClient;
         this.maskManager = maskManager;
@@ -175,6 +175,10 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         });
 
         this.bringToFront();
+
+        if (initialDiagnostics && initialDiagnostics.length > 0) {
+            this.setDiagnostics(initialDiagnostics);
+        }
     }
 
     private contentChangeTimeout: any = null;

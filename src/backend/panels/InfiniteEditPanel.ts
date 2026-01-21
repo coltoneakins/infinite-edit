@@ -114,7 +114,7 @@ export class InfiniteEditPanel {
 
         this._messageBus.register('provideDefinition', async (message) => {
             const { file, position } = message;
-            const uri = InfiniteFileSystemProvider.getUri(file);
+            const uri = vscode.Uri.file(file);
             const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
             try {
                 const result = await vscode.commands.executeCommand<any>(
@@ -131,7 +131,7 @@ export class InfiniteEditPanel {
 
         this._messageBus.register('provideHover', async (message) => {
             const { file, position } = message;
-            const uri = InfiniteFileSystemProvider.getUri(file);
+            const uri = vscode.Uri.file(file);
             const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
             try {
                 const result = await vscode.commands.executeCommand<any>(
@@ -139,7 +139,8 @@ export class InfiniteEditPanel {
                     uri,
                     pos
                 );
-                return result ? result[0] : null; // Hover provider returns array of hovers
+                // executeHoverProvider returns vscode.Hover[]
+                return (result && result.length > 0) ? result[0] : null;
             } catch (e) {
                 console.error('Failed to provide hover:', e);
                 return null;
@@ -148,7 +149,7 @@ export class InfiniteEditPanel {
 
         this._messageBus.register('provideCompletions', async (message) => {
             const { file, position } = message;
-            const uri = InfiniteFileSystemProvider.getUri(file);
+            const uri = vscode.Uri.file(file);
             const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
             try {
                 const result = await vscode.commands.executeCommand<any>(
@@ -156,6 +157,8 @@ export class InfiniteEditPanel {
                     uri,
                     pos
                 );
+                // executeCompletionItemProvider returns vscode.CompletionList | vscode.CompletionItem[]
+                // In executeCommand it usually returns a single merged result but can be an array in some VS Code versions
                 return result;
             } catch (e) {
                 console.error('Failed to provide completions:', e);
@@ -163,9 +166,79 @@ export class InfiniteEditPanel {
             }
         });
 
+        this._messageBus.register('provideInlayHints', async (message) => {
+            const { file, range } = message;
+            const uri = vscode.Uri.file(file);
+            const vsRange = new vscode.Range(
+                new vscode.Position(range.startLineNumber - 1, range.startColumn - 1),
+                new vscode.Position(range.endLineNumber - 1, range.endColumn - 1)
+            );
+            try {
+                const result = await vscode.commands.executeCommand<any>(
+                    'vscode.executeInlayHintProvider',
+                    uri,
+                    vsRange
+                );
+                return result;
+            } catch (e) {
+                console.error('Failed to provide inlay hints:', e);
+                return null;
+            }
+        });
+
+        this._messageBus.register('provideSignatureHelp', async (message) => {
+            const { file, position } = message;
+            const uri = vscode.Uri.file(file);
+            const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
+            try {
+                const result = await vscode.commands.executeCommand<any>(
+                    'vscode.executeSignatureHelpProvider',
+                    uri,
+                    pos
+                );
+                return result;
+            } catch (e) {
+                console.error('Failed to provide signature help:', e);
+                return null;
+            }
+        });
+
+        this._messageBus.register('provideReferences', async (message) => {
+            const { file, position, context } = message;
+            const uri = vscode.Uri.file(file);
+            const pos = new vscode.Position(position.lineNumber - 1, position.column - 1);
+            try {
+                const result = await vscode.commands.executeCommand<any>(
+                    'vscode.executeReferenceProvider',
+                    uri,
+                    pos
+                );
+                return result;
+            } catch (e) {
+                console.error('Failed to provide references:', e);
+                return null;
+            }
+        });
+
+        this._messageBus.register('provideDocumentSymbols', async (message) => {
+            const { file } = message;
+            const uri = vscode.Uri.file(file);
+            try {
+                const result = await vscode.commands.executeCommand<any>(
+                    'vscode.executeDocumentSymbolProvider',
+                    uri
+                );
+                return result;
+            } catch (e) {
+                console.error('Failed to provide document symbols:', e);
+                return null;
+            }
+        });
+
         this._messageBus.register('toggleBreakpoint', async (message) => {
             const { file, line } = message;
-            const uri = InfiniteFileSystemProvider.getUri(file);
+            // Use the REAL file URI for breakpoints so they appear in both native and infinite editors
+            const uri = vscode.Uri.file(file);
             const breakpoint = vscode.debug.breakpoints.find(b =>
                 b instanceof vscode.SourceBreakpoint &&
                 b.location.uri.toString() === uri.toString() &&
@@ -209,11 +282,13 @@ export class InfiniteEditPanel {
         // Forward diagnostics (errors/warnings) to the webview
         vscode.languages.onDidChangeDiagnostics(e => {
             for (const uri of e.uris) {
-                if (uri.scheme === 'infinite') {
+                const scheme = uri.scheme;
+                if (scheme === 'infinite' || scheme === 'file') {
+                    const filePath = scheme === 'file' ? uri.fsPath : uri.path;
                     const diagnostics = vscode.languages.getDiagnostics(uri);
                     this._panel.webview.postMessage({
                         command: 'setDiagnostics',
-                        file: uri.path,
+                        file: filePath,
                         diagnostics: diagnostics.map(d => ({
                             message: d.message,
                             severity: this._mapSeverity(d.severity),
@@ -231,22 +306,33 @@ export class InfiniteEditPanel {
         vscode.debug.onDidChangeBreakpoints(e => {
             const affectedFiles = new Set<string>();
             [...e.added, ...e.removed, ...e.changed].forEach(b => {
-                if (b instanceof vscode.SourceBreakpoint && b.location.uri.scheme === 'infinite') {
-                    affectedFiles.add(b.location.uri.path);
+                if (b instanceof vscode.SourceBreakpoint) {
+                    const scheme = b.location.uri.scheme;
+                    if (scheme === 'infinite' || scheme === 'file') {
+                        const filePath = scheme === 'file' ? b.location.uri.fsPath : b.location.uri.path;
+                        affectedFiles.add(filePath);
+                    }
                 }
             });
 
             for (const filePath of affectedFiles) {
-                const uri = InfiniteFileSystemProvider.getUri(filePath);
+                // Find breakpoints for BOTH URIs (real and virtual) and combine them
+                const realUri = vscode.Uri.file(filePath);
+                const virtUri = InfiniteFileSystemProvider.getUri(filePath);
+
                 const fileBreakpoints = vscode.debug.breakpoints.filter(b =>
                     b instanceof vscode.SourceBreakpoint &&
-                    b.location.uri.toString() === uri.toString()
+                    (b.location.uri.toString() === realUri.toString() ||
+                        b.location.uri.toString() === virtUri.toString())
                 ).map(b => (b as vscode.SourceBreakpoint).location.range.start.line + 1);
+
+                // Use a Set to unique lines in case there are identical breakpoints on both URIs
+                const uniqueLines = Array.from(new Set(fileBreakpoints));
 
                 this._panel.webview.postMessage({
                     command: 'setBreakpoints',
                     file: filePath,
-                    breakpoints: fileBreakpoints
+                    breakpoints: uniqueLines
                 });
             }
         }, null, this._disposables);
@@ -352,11 +438,20 @@ export class InfiniteEditPanel {
 
     public openFile(document: vscode.TextDocument) {
         const infiniteUri = InfiniteFileSystemProvider.getUri(document.fileName);
+        const diagnostics = vscode.languages.getDiagnostics(document.uri);
         const message = {
             command: 'openFile',
             file: document.fileName,
             uri: infiniteUri.toString(),
-            content: document.getText()
+            content: document.getText(),
+            diagnostics: diagnostics.map(d => ({
+                message: d.message,
+                severity: this._mapSeverity(d.severity),
+                startLineNumber: d.range.start.line + 1,
+                startColumn: d.range.start.character + 1,
+                endLineNumber: d.range.end.line + 1,
+                endColumn: d.range.end.character + 1
+            }))
         };
 
         if (this._isReady) {

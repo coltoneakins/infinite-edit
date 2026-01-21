@@ -104,17 +104,18 @@ export class CanvasManager {
         this.updateToolbarPosition();
     }
 
-    public addEditor(file: string, content: string, uri: string) {
+    public addEditor(file: string, content: string, uri: string, diagnostics: any[] = []) {
         // If an editor for this file already exists, just update its content if needed, 
         // or we could potentially prevent duplicates. For now, let's allow duplicates 
         // if they have different context, but it's better to just focus if it exists.
         const existing = this.nodes.find(n => n.getFilePath() === file);
         if (existing) {
             existing.updateContent(content);
+            existing.setDiagnostics(diagnostics);
             return;
         }
 
-        const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager);
+        const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager, diagnostics);
         this.contentContainer.addChild(editor);
         editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
         editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;

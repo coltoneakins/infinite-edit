@@ -89,7 +89,7 @@ export class Toolbar extends DOMContainer implements MaskProvider {
         }
 
         try {
-            const results = await this.messageClient.request('findFiles', { query });
+            const results = await this.messageClient.sendRequest('findFiles', { query });
             this.renderResults(results);
         } catch (err) {
             console.error('Find files failed:', err);
