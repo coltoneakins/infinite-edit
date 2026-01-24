@@ -86,9 +86,35 @@ export class InfiniteEditPanel {
             try {
                 const uri = vscode.Uri.file(message.path);
                 const document = await vscode.workspace.openTextDocument(uri);
-                this.openFile(document);
+
+                let selection: vscode.Range | undefined;
+                if (message.selection) {
+                    selection = new vscode.Range(
+                        message.selection.startLineNumber - 1,
+                        message.selection.startColumn - 1,
+                        message.selection.endLineNumber - 1,
+                        message.selection.endColumn - 1
+                    );
+                }
+
+                this.openFile(document, selection);
             } catch (e) {
                 vscode.window.showErrorMessage(`Failed to open file: ${message.path}`);
+            }
+        });
+
+        this._messageBus.register('getFileContent', async (message) => {
+            try {
+                // Handle both absolute paths and URI strings
+                const uri = message.file.startsWith('file:')
+                    ? vscode.Uri.parse(message.file)
+                    : vscode.Uri.file(message.file);
+
+                const content = await vscode.workspace.fs.readFile(uri);
+                return new TextDecoder().decode(content);
+            } catch (e) {
+                console.error(`Failed to read file ${message.file}:`, e);
+                return null;
             }
         });
 
@@ -436,7 +462,7 @@ export class InfiniteEditPanel {
         vscode.commands.executeCommand('workbench.action.pinEditor', panel);
     }
 
-    public openFile(document: vscode.TextDocument) {
+    public openFile(document: vscode.TextDocument, selection?: vscode.Range) {
         const infiniteUri = InfiniteFileSystemProvider.getUri(document.fileName);
         const diagnostics = vscode.languages.getDiagnostics(document.uri);
         const message = {
@@ -451,7 +477,13 @@ export class InfiniteEditPanel {
                 startColumn: d.range.start.character + 1,
                 endLineNumber: d.range.end.line + 1,
                 endColumn: d.range.end.character + 1
-            }))
+            })),
+            selection: selection ? {
+                startLineNumber: selection.start.line + 1,
+                startColumn: selection.start.character + 1,
+                endLineNumber: selection.end.line + 1,
+                endColumn: selection.end.character + 1
+            } : undefined
         };
 
         if (this._isReady) {

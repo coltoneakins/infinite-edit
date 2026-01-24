@@ -77,7 +77,7 @@ class App {
             const message = event.data;
             switch (message.command) {
                 case 'openFile':
-                    this.canvasManager.addEditor(message.file, message.content, message.uri, message.diagnostics);
+                    this.canvasManager.addEditor(message.file, message.content, message.uri, message.diagnostics, message.selection);
                     break;
                 case 'didChangeTextDocument':
                     this.canvasManager.updateEditorContent(message.file, message.content);

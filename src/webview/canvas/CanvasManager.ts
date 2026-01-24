@@ -104,18 +104,21 @@ export class CanvasManager {
         this.updateToolbarPosition();
     }
 
-    public addEditor(file: string, content: string, uri: string, diagnostics: any[] = []) {
-        // If an editor for this file already exists, just update its content if needed, 
-        // or we could potentially prevent duplicates. For now, let's allow duplicates 
-        // if they have different context, but it's better to just focus if it exists.
-        const existing = this.nodes.find(n => n.getFilePath() === file);
+    public addEditor(file: string, content: string, uri: string, diagnostics: any[] = [], selection?: any) {
+        // Find existing editor for this file
+        // Note: The logic previously didn't handle selection if file was already open.
+        const existing = this.nodes.find(n => n instanceof EditorNode && n.getFilePath() === file) as EditorNode | undefined;
         if (existing) {
             existing.updateContent(content);
             existing.setDiagnostics(diagnostics);
+            if (selection) {
+                existing.setSelection(selection);
+            }
+            existing.bringToFront();
             return;
         }
 
-        const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager, diagnostics);
+        const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager, diagnostics, selection);
         this.contentContainer.addChild(editor);
         editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
         editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;

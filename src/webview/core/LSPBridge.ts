@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor';
 import { MessageClient } from './MessageClient';
+import { getLanguageForFile } from '../../shared/MonacoConfig';
 
 export class LSPBridge {
     private messageClient: MessageClient;
@@ -31,14 +32,16 @@ export class LSPBridge {
                     }
                 });
 
-                if (!result) {
-                    return null;
-                }
+                if (!result) return null;
 
-                if (Array.isArray(result)) {
-                    return result.map(loc => this.transformLocation(loc));
-                }
-                return this.transformLocation(result);
+                const locations = Array.isArray(result)
+                    ? result.map(loc => this.transformLocation(loc))
+                    : [this.transformLocation(result)];
+
+                // Ensure models exist so Monaco can navigate to them
+                await this.ensureModelsForLocations(locations);
+
+                return Array.isArray(result) ? locations : locations[0];
             }
         });
 
@@ -217,7 +220,14 @@ export class LSPBridge {
                     return null;
                 }
 
-                return result.map((loc: any) => this.transformLocation(loc));
+                // Transform locations and ensure models exist for all referenced files
+                const locations = result.map((loc: any) => this.transformLocation(loc));
+
+                // Create models for any files that don't have them yet
+                // This is needed for Monaco's peek view to display references
+                await this.ensureModelsForLocations(locations);
+
+                return locations;
             }
         });
 
@@ -311,11 +321,73 @@ export class LSPBridge {
         const uri = loc.uri || loc.targetUri;
         const range = loc.range || loc.targetRange || loc.targetSelectionRange;
 
-        const uriStr = typeof uri === 'string' ? uri : (uri?.external || (typeof uri?.toString === 'function' ? uri.toString() : ''));
+        let monacoUri: monaco.Uri;
+
+        if (uri instanceof monaco.Uri) {
+            monacoUri = uri;
+        } else if (typeof uri === 'string') {
+            monacoUri = monaco.Uri.parse(uri);
+        } else if (uri && typeof uri === 'object') {
+            // Handle serialized VS Code Uri objects
+            // These have scheme, path, query, etc. but no methods
+            try {
+                monacoUri = monaco.Uri.from({
+                    scheme: uri.scheme || 'file',
+                    authority: uri.authority || '',
+                    path: uri.path || '',
+                    query: uri.query || '',
+                    fragment: uri.fragment || ''
+                });
+            } catch (e) {
+                console.error('Failed to reconstruct URI from object:', uri, e);
+                monacoUri = monaco.Uri.parse('');
+            }
+        } else {
+            monacoUri = monaco.Uri.parse('');
+        }
 
         return {
-            uri: monaco.Uri.parse(uriStr),
+            uri: monacoUri,
             range: this.transformRange(range)
         };
+    }
+
+
+    /**
+     * Ensures that Monaco models exist for all files referenced in the locations.
+     * This is necessary for Monaco's peek view to display references from other files.
+     */
+    private async ensureModelsForLocations(locations: monaco.languages.Location[]): Promise<void> {
+        const uniqueUris = new Map<string, monaco.Uri>();
+
+        // Collect unique URIs
+        for (const loc of locations) {
+            const uriStr = loc.uri.toString();
+            if (!uniqueUris.has(uriStr)) {
+                uniqueUris.set(uriStr, loc.uri);
+            }
+        }
+
+        // Create models for URIs that don't have them
+        for (const [uriStr, uri] of uniqueUris) {
+            if (!monaco.editor.getModel(uri)) {
+                try {
+                    // Request file content from the backend
+                    const content = await this.messageClient.sendRequest('getFileContent', {
+                        file: uri.path
+                    });
+
+                    if (content !== null && content !== undefined) {
+                        // Determine language from file extension using shared config
+                        const language = getLanguageForFile(uri.path);
+
+                        // Create a temporary model for this file
+                        monaco.editor.createModel(content, language, uri);
+                    }
+                } catch (e) {
+                    console.warn(`Failed to create model for ${uriStr}:`, e);
+                }
+            }
+        }
     }
 }

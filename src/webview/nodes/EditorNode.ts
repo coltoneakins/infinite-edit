@@ -31,7 +31,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
     private static lastContextMenuTriggeredNode: EditorNode | null = null;
 
-    constructor(file: string, content: string, uri: string, messageClient: MessageClient, maskManager: MaskManager, initialDiagnostics: any[] = []) {
+    constructor(file: string, content: string, uri: string, messageClient: MessageClient, maskManager: MaskManager, initialDiagnostics: any[] = [], initialSelection?: any) {
         super();
         this.messageClient = messageClient;
         this.maskManager = maskManager;
@@ -115,17 +115,43 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             model = monaco.editor.createModel(content, LanguageManager.prepareLanguageForFile(this.filePath), monacoUri);
         }
 
-        // Setup Monaco Editor
+        // Setup Monaco Editor with custom editorService to handle "Go to Definition"
         this.monacoInstance = monaco.editor.create(this.monacoDiv, {
             model: model,
             theme: 'vs-dark',
             automaticLayout: true,
             minimap: { enabled: false },
             glyphMargin: true,
-            overflowWidgetsDomNode: this.wrapper,
-            fixedOverflowWidgets: true
-        });
+        }, {
+            editorService: {
+                openCodeEditor: async (input: any, source: any, sideBySide: any) => {
+                    const resource = input.resource;
+                    const selection = input.options ? input.options.selection : null;
 
+                    // If it's the current file, just navigate within the same editor
+                    if (resource.toString() === this.uri || resource.path === this.filePath) {
+                        if (selection) {
+                            this.monacoInstance.revealRangeInCenter(selection);
+                            this.monacoInstance.setPosition({
+                                lineNumber: selection.startLineNumber,
+                                column: selection.startColumn
+                            });
+                            this.monacoInstance.focus();
+                        }
+                        return this.monacoInstance;
+                    }
+
+                    // For a different file, request the backend to open it
+                    // This will trigger the 'openFile' message in the webview
+                    this.messageClient.send('requestOpenFile', {
+                        path: resource.path,
+                        selection: selection
+                    });
+
+                    return null; // The file will be opened in a new EditorNode
+                }
+            } as any
+        });
         this.wrapper.appendChild(this.monacoDiv);
 
         // Listen for changes and send to backend
@@ -179,6 +205,10 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         if (initialDiagnostics && initialDiagnostics.length > 0) {
             this.setDiagnostics(initialDiagnostics);
         }
+
+        if (initialSelection) {
+            this.setSelection(initialSelection);
+        }
     }
 
     private contentChangeTimeout: any = null;
@@ -210,6 +240,23 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         const model = this.monacoInstance.getModel();
         if (model) {
             monaco.editor.setModelMarkers(model, 'vscode', diagnostics);
+        }
+    }
+
+    public setSelection(selection: any) {
+        if (selection) {
+            const range = new monaco.Range(
+                selection.startLineNumber,
+                selection.startColumn,
+                selection.endLineNumber,
+                selection.endColumn
+            );
+            this.monacoInstance.revealRangeInCenter(range);
+            this.monacoInstance.setPosition({
+                lineNumber: selection.startLineNumber,
+                column: selection.startColumn
+            });
+            this.monacoInstance.focus();
         }
     }
 
@@ -461,7 +508,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.wrapper.style.zIndex = z.toString();
     }
 
-    private bringToFront() {
+    public bringToFront() {
         EditorNode.globalMaxZIndex++;
         this.setZIndex(EditorNode.globalMaxZIndex);
         if (this.parent) {
