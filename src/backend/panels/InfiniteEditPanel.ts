@@ -298,15 +298,17 @@ export class InfiniteEditPanel {
             const scheme = e.document.uri.scheme;
             if (scheme === 'infinite' || scheme === 'file') {
                 const filePath = scheme === 'file' ? e.document.uri.fsPath : e.document.uri.path;
+                const infiniteUri = InfiniteFileSystemProvider.getUri(filePath);
                 this._panel.webview.postMessage({
                     command: 'didChangeTextDocument',
                     file: filePath,
+                    uri: infiniteUri.toString(),
                     content: e.document.getText()
                 });
 
                 // If a real file changed, notify the provider to update virtual documents
                 if (scheme === 'file') {
-                    this._fileSystemProvider.notifyFileChanged(InfiniteFileSystemProvider.getUri(filePath));
+                    this._fileSystemProvider.notifyFileChanged(infiniteUri);
                 }
             }
         }, null, this._disposables);

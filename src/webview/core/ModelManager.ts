@@ -258,7 +258,11 @@ export class ModelManager {
      * @param uri The model URI
      * @param content The new content
      */
-    public updateModelContent(uri: string | monaco.Uri, content: string): void {
+    public updateModelContent(uri: string | monaco.Uri | undefined, content: string): void {
+        if (!uri) {
+            console.warn('updateModelContent called with undefined uri');
+            return;
+        }
         const monacoUri = typeof uri === 'string' ? monaco.Uri.parse(uri) : uri;
         const key = monacoUri.toString();
         const managed = this.models.get(key);
