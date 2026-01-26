@@ -1,9 +1,8 @@
 import { Container, DOMContainer, Graphics, FederatedPointerEvent, Rectangle } from 'pixi.js';
 import * as monaco from 'monaco-editor';
-import { LanguageManager } from '../core/LanguageManager';
 import { MessageClient } from '../core/MessageClient';
-
 import { MaskManager, MaskProvider } from '../core/MaskManager';
+import { ModelManager, IModelReference } from '../core/ModelManager';
 
 export class EditorNode extends DOMContainer implements MaskProvider {
     private wrapper: HTMLDivElement;
@@ -20,6 +19,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private filePath: string;
     private messageClient: MessageClient;
     private maskManager: MaskManager;
+    private modelRef: IModelReference;
     private isDragging: boolean = false;
     private dragOffset: { x: number; y: number } = { x: 0, y: 0 };
     private isResizing: boolean = false;
@@ -108,16 +108,13 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         this.monacoDiv.style.height = `${this.height_ - this.titleHeight - this.borderThickness * 2 + this.borderThickness / 2}px`; // Offset by half the border thickness to make editor align with border
         this.monacoDiv.style.pointerEvents = 'auto'; // Re-enable for the editor itself
 
-        // Setup Monaco Model with URI
-        const monacoUri = monaco.Uri.parse(uri);
-        let model = monaco.editor.getModel(monacoUri);
-        if (!model) {
-            model = monaco.editor.createModel(content, LanguageManager.prepareLanguageForFile(this.filePath), monacoUri);
-        }
+        // Get or create model reference through ModelManager
+        const modelManager = ModelManager.getInstance();
+        this.modelRef = modelManager.getOrCreateModelReference(uri, content, this.filePath);
 
         // Setup Monaco Editor with custom editorService to handle "Go to Definition"
         this.monacoInstance = monaco.editor.create(this.monacoDiv, {
-            model: model,
+            model: this.modelRef.model,
             theme: 'vs-dark',
             automaticLayout: true,
             minimap: { enabled: false },
@@ -516,12 +513,15 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         }
     }
 
-    private save() {
-        const content = this.monacoInstance.getValue();
-        this.messageClient.send('saveFile', {
-            file: this.filePath,
-            content: content
-        });
+    private async save() {
+        try {
+            await this.modelRef.save();
+        } catch (e) {
+            console.error('Failed to save file:', e);
+            this.messageClient.send('alert', {
+                message: `Failed to save ${this.filePath}: ${e}`
+            });
+        }
     }
 
     private onClose() {
@@ -648,5 +648,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             this.monacoDiv.parentNode.removeChild(this.monacoDiv);
         }
         this.monacoInstance.dispose();
+        // Release our reference to the model - it will be disposed if no other editors use it
+        this.modelRef.dispose();
     }
 }

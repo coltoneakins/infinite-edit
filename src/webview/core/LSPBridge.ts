@@ -1,6 +1,6 @@
 import * as monaco from 'monaco-editor';
 import { MessageClient } from './MessageClient';
-import { getLanguageForFile } from '../../shared/MonacoConfig';
+import { ModelManager } from './ModelManager';
 
 export class LSPBridge {
     private messageClient: MessageClient;
@@ -356,38 +356,10 @@ export class LSPBridge {
     /**
      * Ensures that Monaco models exist for all files referenced in the locations.
      * This is necessary for Monaco's peek view to display references from other files.
+     * Uses ModelManager to create temporary models with automatic cleanup.
      */
     private async ensureModelsForLocations(locations: monaco.languages.Location[]): Promise<void> {
-        const uniqueUris = new Map<string, monaco.Uri>();
-
-        // Collect unique URIs
-        for (const loc of locations) {
-            const uriStr = loc.uri.toString();
-            if (!uniqueUris.has(uriStr)) {
-                uniqueUris.set(uriStr, loc.uri);
-            }
-        }
-
-        // Create models for URIs that don't have them
-        for (const [uriStr, uri] of uniqueUris) {
-            if (!monaco.editor.getModel(uri)) {
-                try {
-                    // Request file content from the backend
-                    const content = await this.messageClient.sendRequest('getFileContent', {
-                        file: uri.path
-                    });
-
-                    if (content !== null && content !== undefined) {
-                        // Determine language from file extension using shared config
-                        const language = getLanguageForFile(uri.path);
-
-                        // Create a temporary model for this file
-                        monaco.editor.createModel(content, language, uri);
-                    }
-                } catch (e) {
-                    console.warn(`Failed to create model for ${uriStr}:`, e);
-                }
-            }
-        }
+        const modelManager = ModelManager.getInstance();
+        await modelManager.ensureModelsForLocations(locations);
     }
 }

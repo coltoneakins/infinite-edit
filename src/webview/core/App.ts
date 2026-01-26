@@ -2,6 +2,7 @@ import { Application } from 'pixi.js';
 import { CanvasManager } from '../canvas/CanvasManager';
 import { MessageClient } from '../core/MessageClient';
 import { MaskManager } from './MaskManager';
+import { ModelManager } from './ModelManager';
 import { LSPBridge } from './LSPBridge';
 
 class App {
@@ -10,6 +11,7 @@ class App {
     private canvasManager!: CanvasManager;
     private messageClient!: MessageClient;
     private maskManager!: MaskManager;
+    private modelManager!: ModelManager;
     public ready: Promise<void>;
 
     constructor() {
@@ -60,6 +62,9 @@ class App {
         // This is where the frontend handles message passing
         this.messageClient = new MessageClient();
 
+        // Initialize ModelManager (must be before LSPBridge and CanvasManager)
+        this.modelManager = ModelManager.initialize(this.messageClient);
+
         // Initialize LSP Bridge
         new LSPBridge(this.messageClient);
 
@@ -80,6 +85,9 @@ class App {
                     this.canvasManager.addEditor(message.file, message.content, message.uri, message.diagnostics, message.selection);
                     break;
                 case 'didChangeTextDocument':
+                    // Update model content through ModelManager (handles dirty state)
+                    this.modelManager.updateModelContent(message.uri, message.content);
+                    // Also update the editor view
                     this.canvasManager.updateEditorContent(message.file, message.content);
                     break;
                 case 'setDiagnostics':
@@ -102,6 +110,10 @@ class App {
 
     get messageClientInstance() {
         return this.messageClient;
+    }
+
+    get modelManagerInstance() {
+        return this.modelManager;
     }
 
 }
