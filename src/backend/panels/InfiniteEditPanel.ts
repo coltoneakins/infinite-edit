@@ -263,19 +263,25 @@ export class InfiniteEditPanel {
 
         this._messageBus.register('toggleBreakpoint', async (message) => {
             const { file, line } = message;
-            // Use the REAL file URI for breakpoints so they appear in both native and infinite editors
-            const uri = vscode.Uri.file(file);
-            const breakpoint = vscode.debug.breakpoints.find(b =>
+            // Check BOTH real (file://) and virtual (infinite://) URIs for existing breakpoints
+            // to avoid desync between the two schemes
+            const realUri = vscode.Uri.file(file);
+            const virtUri = InfiniteFileSystemProvider.getUri(file);
+
+            const existingBreakpoints = vscode.debug.breakpoints.filter(b =>
                 b instanceof vscode.SourceBreakpoint &&
-                b.location.uri.toString() === uri.toString() &&
+                (b.location.uri.toString() === realUri.toString() ||
+                 b.location.uri.toString() === virtUri.toString()) &&
                 b.location.range.start.line === line - 1
             );
 
-            if (breakpoint) {
-                vscode.debug.removeBreakpoints([breakpoint]);
+            if (existingBreakpoints.length > 0) {
+                // Remove ALL matching breakpoints from both URIs to ensure sync
+                vscode.debug.removeBreakpoints(existingBreakpoints);
             } else {
+                // Add new breakpoint on real file URI so it appears in native editor
                 const newBreakpoint = new vscode.SourceBreakpoint(
-                    new vscode.Location(uri, new vscode.Position(line - 1, 0))
+                    new vscode.Location(realUri, new vscode.Position(line - 1, 0))
                 );
                 vscode.debug.addBreakpoints([newBreakpoint]);
             }
