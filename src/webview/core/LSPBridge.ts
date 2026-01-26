@@ -8,6 +8,49 @@ export class LSPBridge {
     constructor(messageClient: MessageClient) {
         this.messageClient = messageClient;
         this.registerProviders();
+        this.registerEditorOpener();
+    }
+
+    /**
+     * Register a global editor opener to handle "Go to Definition" and similar navigation.
+     * This is the correct way to intercept editor open operations in standalone Monaco.
+     * The editorService.openCodeEditor approach doesn't work reliably in standalone mode.
+     */
+    private registerEditorOpener() {
+        monaco.editor.registerEditorOpener({
+            openCodeEditor: (source, resource, selectionOrPosition) => {
+                // Get the source editor's model URI to check if it's the same file
+                const sourceModel = source.getModel();
+                if (sourceModel && sourceModel.uri.toString() === resource.toString()) {
+                    // Same file - let Monaco handle internal navigation
+                    return false;
+                }
+
+                // Different file - request backend to open it
+                let selection: any = undefined;
+                if (selectionOrPosition) {
+                    if ('startLineNumber' in selectionOrPosition) {
+                        // It's a range
+                        selection = selectionOrPosition;
+                    } else if ('lineNumber' in selectionOrPosition) {
+                        // It's a position - convert to range
+                        selection = {
+                            startLineNumber: selectionOrPosition.lineNumber,
+                            startColumn: selectionOrPosition.column,
+                            endLineNumber: selectionOrPosition.lineNumber,
+                            endColumn: selectionOrPosition.column
+                        };
+                    }
+                }
+
+                this.messageClient.send('requestOpenFile', {
+                    path: resource.path,
+                    selection: selection
+                });
+
+                return true; // We handled the request
+            }
+        });
     }
 
     private registerProviders() {

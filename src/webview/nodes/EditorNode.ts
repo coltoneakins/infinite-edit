@@ -112,7 +112,8 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         const modelManager = ModelManager.getInstance();
         this.modelRef = modelManager.getOrCreateModelReference(uri, content, this.filePath);
 
-        // Setup Monaco Editor with custom editorService to handle "Go to Definition"
+        // Setup Monaco Editor
+        // Note: "Go to Definition" navigation is handled globally by LSPBridge.registerEditorOpener()
         this.monacoInstance = monaco.editor.create(this.monacoDiv, {
             model: this.modelRef.model,
             theme: 'vs-dark',
@@ -129,35 +130,6 @@ export class EditorNode extends DOMContainer implements MaskProvider {
                 verticalScrollbarSize: 14,
                 horizontalScrollbarSize: 10,
             },
-        }, {
-            editorService: {
-                openCodeEditor: async (input: any, source: any, sideBySide: any) => {
-                    const resource = input.resource;
-                    const selection = input.options ? input.options.selection : null;
-
-                    // If it's the current file, just navigate within the same editor
-                    if (resource.toString() === this.uri || resource.path === this.filePath) {
-                        if (selection) {
-                            this.monacoInstance.revealRangeInCenter(selection);
-                            this.monacoInstance.setPosition({
-                                lineNumber: selection.startLineNumber,
-                                column: selection.startColumn
-                            });
-                            this.monacoInstance.focus();
-                        }
-                        return this.monacoInstance;
-                    }
-
-                    // For a different file, request the backend to open it
-                    // This will trigger the 'openFile' message in the webview
-                    this.messageClient.send('requestOpenFile', {
-                        path: resource.path,
-                        selection: selection
-                    });
-
-                    return null; // The file will be opened in a new EditorNode
-                }
-            } as any
         });
         this.wrapper.appendChild(this.monacoDiv);
 
