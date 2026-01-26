@@ -119,6 +119,16 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             automaticLayout: true,
             minimap: { enabled: false },
             glyphMargin: true,
+            // Ensure overview ruler (error/warning indicators) is on the right
+            overviewRulerLanes: 3,
+            overviewRulerBorder: false,
+            // Ensure scrollbar is on the right side
+            scrollbar: {
+                vertical: 'auto',
+                horizontal: 'auto',
+                verticalScrollbarSize: 14,
+                horizontalScrollbarSize: 10,
+            },
         }, {
             editorService: {
                 openCodeEditor: async (input: any, source: any, sideBySide: any) => {

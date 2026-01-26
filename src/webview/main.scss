@@ -47,3 +47,11 @@ body {
     height: 12px !important;
     cursor: pointer;
 }
+
+// Ensure Monaco's decorations overview ruler (error/warning indicators) is on the right
+.monaco-editor .decorationsOverviewRuler,
+.monaco-scrollable-element .decorationsOverviewRuler,
+canvas.decorationsOverviewRuler {
+    right: 0 !important;
+    left: unset !important;
+}
