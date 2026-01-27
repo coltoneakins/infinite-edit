@@ -2,6 +2,7 @@ import { Application, Container, Graphics, FederatedPointerEvent, FederatedWheel
 import { EditorNode } from '../nodes/EditorNode';
 import { Grid } from './Grid';
 import { Viewport } from './Viewport';
+import { NodeLayoutManager } from './NodeLayoutManager';
 import { Toolbar } from '../ui/Toolbar';
 import { MessageClient } from '../core/MessageClient';
 
@@ -14,6 +15,7 @@ export class CanvasManager {
     private viewport: Viewport;
     private grid: Grid;
     private maskManager: MaskManager; // Centralized mask manager
+    private layoutManager: NodeLayoutManager; // Manages node positioning and sizing
     private zoomLevel: number = 0;
     private readonly ZOOM_SENSITIVITY: number = 0.004;
     private readonly ZOOM_BASE: number = 1.1;
@@ -29,6 +31,7 @@ export class CanvasManager {
         this.app = app;
         this.stage = app.stage;
         this.maskManager = new MaskManager();
+        this.layoutManager = NodeLayoutManager.getInstance();
 
         // Create a container for all content (nodes)
         this.contentContainer = new Container();
@@ -115,15 +118,41 @@ export class CanvasManager {
                 existing.setSelection(selection);
             }
             existing.bringToFront();
+            // Update focus in layout manager
+            this.layoutManager.setFocusedNode(file);
             return;
         }
 
-        const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager, diagnostics, selection);
-        this.contentContainer.addChild(editor);
-        editor.x = (this.app.screen.width / 2 - editor.width / 2 - this.contentContainer.x) / this.contentContainer.scale.x;
-        editor.y = (this.app.screen.height / 2 - editor.height / 2 - this.contentContainer.y) / this.contentContainer.scale.y;
+        // Calculate intelligent size based on file content
+        const calculatedSize = this.layoutManager.calculateSizeForContent(content);
 
+        // Calculate position (to the right of focused node, or center if first node)
+        const viewportCenter = this.viewport.getCenter();
+        const calculatedPosition = this.layoutManager.calculatePositionForNewNode(
+            calculatedSize,
+            { x: viewportCenter.x, y: viewportCenter.y }
+        );
+
+        // Create editor with calculated size
+        const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager, {
+            initialWidth: calculatedSize.width,
+            initialHeight: calculatedSize.height,
+            initialDiagnostics: diagnostics,
+            initialSelection: selection
+        });
+
+        this.contentContainer.addChild(editor);
+
+        // Position the editor
+        editor.x = calculatedPosition.x;
+        editor.y = calculatedPosition.y;
+
+        // Register with layout manager and set as focused
+        this.layoutManager.registerNode(file, editor);
+
+        // Track focus changes when editor is brought to front
         editor.on('close', () => this.removeEditor(editor));
+
         this.nodes.push(editor);
 
         // MaskManager updates automatically or via Ticker
@@ -154,11 +183,21 @@ export class CanvasManager {
     public removeEditor(editor: EditorNode) {
         const index = this.nodes.indexOf(editor);
         if (index !== -1) {
+            // Unregister from layout manager
+            this.layoutManager.unregisterNode(editor.getFilePath());
+
             this.nodes.splice(index, 1);
             this.contentContainer.removeChild(editor);
             editor.destroy();
             this.updateGrid();
         }
+    }
+
+    /**
+     * Get the NodeLayoutManager instance for external access
+     */
+    public getLayoutManager(): NodeLayoutManager {
+        return this.layoutManager;
     }
 
     private onPointerDown(e: FederatedPointerEvent) {

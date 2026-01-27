@@ -4,6 +4,16 @@ import { MessageClient } from '../core/MessageClient';
 import { MaskManager, MaskProvider } from '../core/MaskManager';
 import { ModelManager, IModelReference } from '../core/ModelManager';
 
+/**
+ * Options for creating an EditorNode
+ */
+export interface EditorNodeOptions {
+    initialWidth?: number;
+    initialHeight?: number;
+    initialDiagnostics?: any[];
+    initialSelection?: any;
+}
+
 export class EditorNode extends DOMContainer implements MaskProvider {
     private wrapper: HTMLDivElement;
     private titleBarDivTextColor: string = '#ffffff';
@@ -31,13 +41,21 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     private boundOnGlobalPointerUp = this.onGlobalPointerUp.bind(this);
     private static lastContextMenuTriggeredNode: EditorNode | null = null;
 
-    constructor(file: string, content: string, uri: string, messageClient: MessageClient, maskManager: MaskManager, initialDiagnostics: any[] = [], initialSelection?: any) {
+    constructor(file: string, content: string, uri: string, messageClient: MessageClient, maskManager: MaskManager, options: EditorNodeOptions = {}) {
         super();
         this.messageClient = messageClient;
         this.maskManager = maskManager;
         this.filePath = file;
         this.uri = uri;
         this.eventMode = 'static';
+
+        // Apply initial size from options if provided
+        if (options.initialWidth !== undefined) {
+            this.width_ = options.initialWidth;
+        }
+        if (options.initialHeight !== undefined) {
+            this.height_ = options.initialHeight;
+        }
 
         // Register as a provider of mask regions (holes)
         this.maskManager.registerProvider(this);
@@ -181,12 +199,12 @@ export class EditorNode extends DOMContainer implements MaskProvider {
 
         this.bringToFront();
 
-        if (initialDiagnostics && initialDiagnostics.length > 0) {
-            this.setDiagnostics(initialDiagnostics);
+        if (options.initialDiagnostics && options.initialDiagnostics.length > 0) {
+            this.setDiagnostics(options.initialDiagnostics);
         }
 
-        if (initialSelection) {
-            this.setSelection(initialSelection);
+        if (options.initialSelection) {
+            this.setSelection(options.initialSelection);
         }
     }
 
@@ -480,6 +498,20 @@ export class EditorNode extends DOMContainer implements MaskProvider {
             this.monacoInstance.layout();
         }
         this.emit('resized');
+    }
+
+    /**
+     * Get the current width of the editor node
+     */
+    public get width(): number {
+        return this.width_;
+    }
+
+    /**
+     * Get the current height of the editor node
+     */
+    public get height(): number {
+        return this.height_;
     }
 
     public setZIndex(z: number) {
