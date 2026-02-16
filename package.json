@@ -32,7 +32,7 @@
           "id": "infinite-edit.sidebarView",
           "name": "Infinite Edit",
           "icon": "assets/icon.png"
-        }
+      }
       ]
     },
     "commands": [

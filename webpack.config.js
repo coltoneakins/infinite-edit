@@ -73,9 +73,6 @@ const webviewConfig = {
   },
   resolve: {
     extensions: ['.ts', '.js', '.scss', '.less', '.css'],
-    alias: {
-      'atom://seti-ui': path.resolve(__dirname, 'assets/seti-ui')
-    }
   },
   module: {
     rules: [
