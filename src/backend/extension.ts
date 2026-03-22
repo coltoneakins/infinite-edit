@@ -5,6 +5,7 @@ import { openCanvasCommand } from './commands/OpenCanvasCommand';
 import { openFileCommand } from './commands/OpenFileCommand';
 import { InfiniteFileSystemProvider } from './providers/FileSystemProvider';
 import { LSPProvider } from './providers/LSPProvider';
+import { ConfigurationManager } from './services/ConfigurationManager';
 // Enable Hot Reload in development mode
 if (process.env.NODE_ENV === "development") {
     const { enableHotReload } = require("@hediet/node-reload/node");
@@ -19,6 +20,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     console.log('Infinite Edit: Activated');
 
+    // Initialize configuration manager
+    const configManager = new ConfigurationManager();
+    context.subscriptions.push(configManager);
+
     // Register the infinite file system provider
     const fileSystemProvider = new InfiniteFileSystemProvider();
     context.subscriptions.push(
@@ -26,8 +31,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Register commands for VS Code's command palette
-    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri, fileSystemProvider));
-    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri, fileSystemProvider));
+    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri, fileSystemProvider, configManager));
+    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri, fileSystemProvider, configManager));
     context.subscriptions.push(openCanvasDisposable, openFileDisposable);
 
     // Register LSP bridge providers

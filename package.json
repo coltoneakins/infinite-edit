@@ -16,6 +16,23 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Infinite Edit",
+      "properties": {
+        "infiniteEdit.theme": {
+          "type": "string",
+          "default": "vs-dark",
+          "enum": ["vs", "vs-dark", "hc-black", "hc-light"],
+          "enumDescriptions": [
+            "Light theme",
+            "Dark theme",
+            "High contrast black theme",
+            "High contrast light theme"
+          ],
+          "description": "The Monaco Editor theme used in EditorNodes"
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {

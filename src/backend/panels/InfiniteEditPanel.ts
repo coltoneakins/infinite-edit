@@ -2,22 +2,25 @@ import * as vscode from 'vscode';
 import { MessageBus } from '../services/MessageBus';
 import { MONACO_WORKER_FILES } from '../../shared/MonacoConfig';
 import { InfiniteFileSystemProvider } from '../providers/FileSystemProvider';
+import { ConfigurationManager } from '../services/ConfigurationManager';
 
 export class InfiniteEditPanel {
     public static currentPanel: InfiniteEditPanel | undefined;
     private readonly _extensionUri: vscode.Uri;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _fileSystemProvider: InfiniteFileSystemProvider;
+    private readonly _configManager: ConfigurationManager;
     private _disposables: vscode.Disposable[] = [];
     private _isReady: boolean = false;
     private _pendingMessages: any[] = [];
 
     private readonly _messageBus: MessageBus = new MessageBus();
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider, configManager: ConfigurationManager) {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._fileSystemProvider = fileSystemProvider;
+        this._configManager = configManager;
         this._messageBus.setWebview(this._panel.webview);
 
         // Set the webview's initial html content
@@ -29,6 +32,15 @@ export class InfiniteEditPanel {
 
         // Register Message Handlers
         this.registerMessageHandlers();
+
+        // Watch for configuration changes
+        const configChangeDisposable = this._configManager.onDidChangeConfiguration((config) => {
+            this._panel.webview.postMessage({
+                command: 'updateConfiguration',
+                config: config
+            });
+        });
+        this._disposables.push(configChangeDisposable);
 
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
@@ -45,6 +57,11 @@ export class InfiniteEditPanel {
 
         this._messageBus.register('ready', () => {
             this._isReady = true;
+            // Send configuration to webview
+            this._panel.webview.postMessage({
+                command: 'updateConfiguration',
+                config: this._configManager.getConfig()
+            });
             this._pendingMessages.forEach(msg => this._panel.webview.postMessage(msg));
             this._pendingMessages = [];
         });
@@ -434,7 +451,7 @@ export class InfiniteEditPanel {
     }
 
 
-    public static createOrShow(extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider) {
+    public static createOrShow(extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider, configManager: ConfigurationManager) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -464,7 +481,7 @@ export class InfiniteEditPanel {
         // Set the icon for the editor tab
         panel.iconPath = vscode.Uri.joinPath(extensionUri, 'assets', 'icon.png');
 
-        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri, fileSystemProvider);
+        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri, fileSystemProvider, configManager);
 
         // Pin the panel (do this after creating the panel instance and setting HTML)
         vscode.commands.executeCommand('workbench.action.pinEditor', panel);
