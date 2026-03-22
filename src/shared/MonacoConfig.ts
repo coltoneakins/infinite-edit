@@ -43,6 +43,7 @@ export const EXTENSION_LANGUAGE_MAP: Record<string, string> = {
 
     // Web
     html: 'html',
+    vue: 'html',
     htm: 'html',
     css: 'css',
     scss: 'scss',
