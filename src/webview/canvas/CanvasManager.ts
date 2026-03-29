@@ -40,6 +40,7 @@ export class CanvasManager {
 
         // Create a container for all content (nodes)
         this.contentContainer = new Container();
+        this.contentContainer.sortableChildren = true;
         this.stage.addChild(this.contentContainer);
 
         // Initialize Viewport
@@ -166,6 +167,9 @@ export class CanvasManager {
         editor.on('close', () => this.removeEditor(editor));
         editor.on('moved', () => {
             this.appStateManager.updateNode(file, { x: editor.x, y: editor.y });
+        });
+        editor.on('indexChanged', () => {
+            this.appStateManager.updateNode(file, { zIndex: editor.zIndex });
         });
         editor.on('resized', () => {
             this.appStateManager.updateNode(file, { width: editor.width, height: editor.height });

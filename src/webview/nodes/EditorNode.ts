@@ -530,6 +530,7 @@ export class EditorNode extends DOMContainer implements MaskProvider {
         if (this.parent) {
             this.parent.addChild(this);
         }
+        this.emit('indexChanged');
     }
 
     private async save() {
