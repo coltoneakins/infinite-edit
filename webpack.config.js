@@ -69,7 +69,7 @@ const webviewConfig = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'webview.js',
-    publicPath: isDevelopment ? 'http://localhost:3000/' : undefined,
+    publicPath: isDevelopment ? process.env.DEV_SERVER_URL || 'http://localhost:3000/' : undefined,
     libraryTarget: 'module'
   },
   experiments: {
