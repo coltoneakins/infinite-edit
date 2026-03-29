@@ -62,16 +62,45 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider)
     );
 
-    // Development-only convenience: automatically reload webviews when compiled dist output changes.
-    // This provides a fast HMR-like workflow for the webview side while developing.
+    // Development-only convenience: automatically notify webviews when compiled dist output changes.
+    // We avoid full webview HTML reload and prefer HMR in the webview runtime.
     if (process.env.NODE_ENV === 'development') {
+        let pendingWebviewUpdate: NodeJS.Timeout | undefined;
+        let hmrUpdateSuppression: NodeJS.Timeout | undefined;
+        let hmrUpdatePending = false;
+
         const reloadWebviews = () => {
-            console.log('Infinite Edit: dist output changed; triggering webview reload.');
-            if (InfiniteEditPanel.currentPanel) {
-                InfiniteEditPanel.currentPanel.reloadWebview();
-            } else {
-                void vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+            // Debounce rapid partial file writes from compiler and avoid mid-build reload artifacts.
+            if (pendingWebviewUpdate) {
+                clearTimeout(pendingWebviewUpdate);
             }
+            pendingWebviewUpdate = setTimeout(() => {
+                if (InfiniteEditPanel.currentPanel && InfiniteEditPanel.currentPanel.hasHmr) {
+                    // HMR is responsible for applying updates, do not flood extension_host with repeats.
+                    if (!hmrUpdatePending) {
+                        console.log('Infinite Edit: HMR active; suppressing dist updates and allowing webpack to patch once.');
+                    }
+
+                    hmrUpdatePending = true;
+                    if (hmrUpdateSuppression) {
+                        clearTimeout(hmrUpdateSuppression);
+                    }
+                    hmrUpdateSuppression = setTimeout(() => {
+                        hmrUpdatePending = false;
+                        hmrUpdateSuppression = undefined;
+                    }, 500);
+
+                } else {
+                    console.log('Infinite Edit: dist output changed; notifying webview for non-HMR update.');
+                    if (InfiniteEditPanel.currentPanel) {
+                        InfiniteEditPanel.currentPanel.notifyDevAssetUpdate();
+                    } else {
+                        void vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+                    }
+                }
+
+                pendingWebviewUpdate = undefined;
+            }, 120);
         };
 
         const distPattern = new vscode.RelativePattern(context.extensionUri.fsPath, 'dist/**');
@@ -81,7 +110,7 @@ export function activate(context: vscode.ExtensionContext) {
         distWatcher.onDidDelete(reloadWebviews, null, context.subscriptions);
         context.subscriptions.push(distWatcher);
 
-        console.log('Infinite Edit: enabled auto webview reload for dist changes (development mode)');
+        console.log('Infinite Edit: enabled dev-mode webview HMR notification for dist changes');
     }
 }
 

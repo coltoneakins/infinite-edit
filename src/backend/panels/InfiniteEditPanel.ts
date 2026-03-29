@@ -12,6 +12,7 @@ export class InfiniteEditPanel {
     private readonly _configManager: ConfigurationManager;
     private _disposables: vscode.Disposable[] = [];
     private _isReady: boolean = false;
+    private _hasHmr: boolean = false;
     private _pendingMessages: any[] = [];
     private _openFiles: { file: string, content: string, uri: string, diagnostics: any[], selection?: any }[] = [];
 
@@ -54,6 +55,11 @@ export class InfiniteEditPanel {
     private registerMessageHandlers() {
         this._messageBus.register('alert', (message) => {
             vscode.window.showErrorMessage(message.text);
+        });
+
+        this._messageBus.register('hmrStatus', (message) => {
+            this._hasHmr = !!message.enabled;
+            console.log('Infinite EditPanel: hmr status =', this._hasHmr);
         });
 
         this._messageBus.register('ready', () => {
@@ -520,6 +526,27 @@ export class InfiniteEditPanel {
         console.log('Infinite EditPanel: reloadWebview requested');
         this._isReady = false;
         this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
+    }
+
+    public get hasHmr(): boolean {
+        return this._hasHmr;
+    }
+
+    public notifyDevAssetUpdate() {
+        console.log('Infinite EditPanel: dev asset update notification');
+
+        if (this._hasHmr) {
+            console.log('Infinite EditPanel: HMR active; skipping manual distUpdated ping');
+            return;
+        }
+
+        const msg = { command: 'distUpdated' };
+
+        if (this._isReady) {
+            this._panel.webview.postMessage(msg);
+        } else {
+            this._pendingMessages.push(msg);
+        }
     }
 
     public openFile(document: vscode.TextDocument, selection?: vscode.Range) {

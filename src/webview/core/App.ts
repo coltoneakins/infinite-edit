@@ -12,6 +12,8 @@ class App {
     private messageClient!: MessageClient;
     private maskManager!: MaskManager;
     private modelManager!: ModelManager;
+    private resizeHandler!: () => void;
+    private messageHandler!: (event: MessageEvent) => void;
     public ready: Promise<void>;
 
     constructor() {
@@ -72,15 +74,53 @@ class App {
         this.canvasManager = new CanvasManager(this.app, this.messageClient);
 
         // Handle window resize
-        window.addEventListener('resize', () => {
+        this.resizeHandler = () => {
             // Pixi automatically handles renderer resize due to 'resizeTo: window'
             // but we need to notify the canvas manager to update its internal state
             this.canvasManager.onResize();
-        });
+        };
+        window.addEventListener('resize', this.resizeHandler);
 
         // Handle messages from the extension
-        window.addEventListener('message', event => {
+        this.messageHandler = (event: MessageEvent) => {
             const message = event.data;
+
+            if (message.command === 'distUpdated') {
+                const hmrActive =
+                    (import.meta as any).hot ||
+                    (import.meta as any).webpackHot ||
+                    (typeof module !== 'undefined' && (module as any).hot) ||
+                    (window as any).__webpack_hmr__ ||
+                    (window as any).webpackHotUpdate ||
+                    (window as any).RSPACK_HMR ||
+                    (window as any).__RSPACK_HMR__;
+
+                if (hmrActive) {
+                    console.log('HMR mode: dist update received; letting module runtime patch automatically.');
+                    return;
+                }
+
+                console.warn('Fallback: no HMR API detected on dist update, forcing full webview reload.');
+
+                // Attempt full browser reload so the latest compiled webview bundle is fetched.
+                try {
+                    window.location.reload();
+                } catch (e) {
+                    console.error('Unable to hard reload webview; retrying with in-memory soft restart', e);
+                    try {
+                        const existingApp = (window as any).infiniteEditApp as App | undefined;
+                        existingApp?.dispose?.();
+                    } catch (inner) {
+                        console.error('Soft restart cleanup failed', inner);
+                    }
+                    const newApp = new App();
+                    (window as any).infiniteEditApp = newApp;
+                    newApp.ready.then(() => newApp.messageClientInstance.send('ready'));
+                }
+
+                return;
+            }
+
             switch (message.command) {
                 case 'openFile':
                     this.canvasManager.addEditor(message.file, message.content, message.uri, message.diagnostics, message.selection);
@@ -98,7 +138,10 @@ class App {
                     this.canvasManager.setEditorBreakpoints(message.file, message.breakpoints);
                     break;
             }
-        });
+        };
+
+        window.addEventListener('message', this.messageHandler);
+
     }
 
     get appInstance() {
@@ -115,6 +158,26 @@ class App {
 
     get modelManagerInstance() {
         return this.modelManager;
+    }
+
+    public dispose() {
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+        }
+
+        if (this.messageHandler) {
+            window.removeEventListener('message', this.messageHandler);
+        }
+
+        if (this.modelManager) {
+            this.modelManager.disposeAll?.();
+        }
+
+        if (this.app) {
+            this.app.destroy(true);
+        }
+
+        // If CanvasManager or others expose custom cleanup in future, they can be called here.
     }
 
 }

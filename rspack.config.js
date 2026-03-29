@@ -66,9 +66,10 @@ const webviewConfig = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'webview.js',
-    publicPath: isDevelopment ? process.env.DEV_SERVER_URL || 'http://localhost:3000/' : undefined,
+    publicPath: isDevelopment ? (process.env.DEV_SERVER_URL || 'http://localhost:3000/') : './',
     module: true
   },
+  hot: true,
   experiments: {
     outputModule: true
   },
@@ -126,6 +127,7 @@ const webviewConfig = {
     new rspack.CssExtractRspackPlugin({
       filename: 'main.css'
     }),
+    new rspack.HotModuleReplacementPlugin(),
     new MonacoWebpackPlugin({
       languages: ['javascript', 'typescript', 'json', 'css', 'html']
     })
