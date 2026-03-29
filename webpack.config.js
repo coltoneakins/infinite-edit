@@ -4,7 +4,10 @@
 
 const webpack = require('webpack');
 const path = require('path');
+const dotenv = require('dotenv');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
+
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { execSync } = require('child_process');
@@ -52,7 +55,8 @@ const extensionConfig = {
   devtool: isDevelopment ? 'eval-source-map' : 'source-map',
   plugins: [
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+      'process.env.DEV_SERVER_URL': JSON.stringify(process.env.DEV_SERVER_URL || 'http://localhost:3000')
     })
   ]
 };
@@ -116,7 +120,8 @@ const webviewConfig = {
   devtool: isDevelopment ? 'eval-source-map' : 'source-map',
   plugins: [
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+      'process.env.DEV_SERVER_URL': JSON.stringify(process.env.DEV_SERVER_URL || 'http://localhost:3000')
     }),
     new MiniCssExtractPlugin({
       filename: 'main.css',

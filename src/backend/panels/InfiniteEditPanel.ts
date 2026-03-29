@@ -13,6 +13,7 @@ export class InfiniteEditPanel {
     private _disposables: vscode.Disposable[] = [];
     private _isReady: boolean = false;
     private _pendingMessages: any[] = [];
+    private _openFiles: { file: string, content: string, uri: string, diagnostics: any[], selection?: any }[] = [];
 
     private readonly _messageBus: MessageBus = new MessageBus();
 
@@ -57,11 +58,26 @@ export class InfiniteEditPanel {
 
         this._messageBus.register('ready', () => {
             this._isReady = true;
-            // Send configuration to webview
+
+            // Send configuration to webview.
             this._panel.webview.postMessage({
                 command: 'updateConfiguration',
                 config: this._configManager.getConfig()
             });
+
+            // Rehydrate open files after a reload.
+            for (const openFile of this._openFiles) {
+                this._panel.webview.postMessage({
+                    command: 'openFile',
+                    file: openFile.file,
+                    uri: openFile.uri,
+                    content: openFile.content,
+                    diagnostics: openFile.diagnostics,
+                    selection: openFile.selection
+                });
+            }
+
+            // Flush pending messages (events that queued before ready).
             this._pendingMessages.forEach(msg => this._panel.webview.postMessage(msg));
             this._pendingMessages = [];
         });
@@ -323,6 +339,16 @@ export class InfiniteEditPanel {
                     content: e.document.getText()
                 });
 
+                // Keep in-memory open file content in sync so a hot reload can rehydrate properly.
+                const openFileIndex = this._openFiles.findIndex(item => item.file === filePath);
+                if (openFileIndex !== -1) {
+                    this._openFiles[openFileIndex] = {
+                        ...this._openFiles[openFileIndex],
+                        content: e.document.getText(),
+                        uri: infiniteUri.toString()
+                    };
+                }
+
                 // If a real file changed, notify the provider to update virtual documents
                 if (scheme === 'file') {
                     this._fileSystemProvider.notifyFileChanged(infiniteUri);
@@ -402,7 +428,7 @@ export class InfiniteEditPanel {
 
     private _getHtmlForWebview(webview: vscode.Webview) {
         const isDevelopment = process.env.NODE_ENV === 'development';
-        const devServerUrl = 'http://localhost:3000';
+        const devServerUrl = process.env.DEV_SERVER_URL || 'http://localhost:3000';
 
         // Helper to get local path to a script or worker
         const getResourceUri = (fileName: string) => isDevelopment
@@ -487,6 +513,12 @@ export class InfiniteEditPanel {
         vscode.commands.executeCommand('workbench.action.pinEditor', panel);
     }
 
+    public reloadWebview() {
+        console.log('Infinite EditPanel: reloadWebview requested');
+        this._isReady = false;
+        this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
+    }
+
     public openFile(document: vscode.TextDocument, selection?: vscode.Range) {
         const infiniteUri = InfiniteFileSystemProvider.getUri(document.fileName);
         const diagnostics = vscode.languages.getDiagnostics(document.uri);
@@ -510,6 +542,22 @@ export class InfiniteEditPanel {
                 endColumn: selection.end.character + 1
             } : undefined
         };
+
+        // Track open file state for reload rehydration.
+        const existingIndex = this._openFiles.findIndex(entry => entry.file === document.fileName);
+        const openFileState = {
+            file: document.fileName,
+            content: document.getText(),
+            uri: infiniteUri.toString(),
+            diagnostics: message.diagnostics,
+            selection: message.selection
+        };
+
+        if (existingIndex >= 0) {
+            this._openFiles[existingIndex] = openFileState;
+        } else {
+            this._openFiles.push(openFileState);
+        }
 
         if (this._isReady) {
             this._panel.webview.postMessage(message);

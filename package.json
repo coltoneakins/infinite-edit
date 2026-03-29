@@ -22,7 +22,12 @@
         "infiniteEdit.theme": {
           "type": "string",
           "default": "vs-dark",
-          "enum": ["vs", "vs-dark", "hc-black", "hc-light"],
+          "enum": [
+            "vs",
+            "vs-dark",
+            "hc-black",
+            "hc-light"
+          ],
           "enumDescriptions": [
             "Light theme",
             "Dark theme",
@@ -49,7 +54,7 @@
           "id": "infinite-edit.sidebarView",
           "name": "Infinite Edit",
           "icon": "assets/icon.png"
-      }
+        }
       ]
     },
     "commands": [
@@ -101,6 +106,7 @@
   "dependencies": {
     "@vscode/codicons": "^0.0.44",
     "css-loader": "^7.1.2",
+    "dotenv": "^17.3.1",
     "monaco-editor": "^0.55.1",
     "monaco-editor-webpack-plugin": "^7.1.1",
     "pixi.js": "^8.14.3",

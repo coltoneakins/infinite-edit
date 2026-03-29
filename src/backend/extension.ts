@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 import { InfiniteEditPanel } from './panels/InfiniteEditPanel';
 import { SidebarProvider } from './providers/SidebarProvider';
 import { openCanvasCommand } from './commands/OpenCanvasCommand';
@@ -6,6 +8,7 @@ import { openFileCommand } from './commands/OpenFileCommand';
 import { InfiniteFileSystemProvider } from './providers/FileSystemProvider';
 import { LSPProvider } from './providers/LSPProvider';
 import { ConfigurationManager } from './services/ConfigurationManager';
+
 // Enable Hot Reload in development mode
 if (process.env.NODE_ENV === "development") {
     const { enableHotReload } = require("@hediet/node-reload/node");
@@ -18,7 +21,13 @@ if (process.env.NODE_ENV === "development") {
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-    console.log('Infinite Edit: Activated');
+    const envPath = path.join(context.extensionUri.fsPath, '.env');
+    dotenv.config({ path: envPath });
+
+    console.log('Infinite Edit: Activated', {
+        nodeEnv: process.env.NODE_ENV,
+        devServerUrl: process.env.DEV_SERVER_URL || 'http://localhost:3000'
+    });
 
     // Initialize configuration manager
     const configManager = new ConfigurationManager();
@@ -43,6 +52,28 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider)
     );
+
+    // Development-only convenience: automatically reload webviews when compiled dist output changes.
+    // This provides a fast HMR-like workflow for the webview side while developing.
+    if (process.env.NODE_ENV === 'development') {
+        const reloadWebviews = () => {
+            console.log('Infinite Edit: dist output changed; triggering webview reload.');
+            if (InfiniteEditPanel.currentPanel) {
+                InfiniteEditPanel.currentPanel.reloadWebview();
+            } else {
+                void vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+            }
+        };
+
+        const distPattern = new vscode.RelativePattern(context.extensionUri.fsPath, 'dist/**');
+        const distWatcher = vscode.workspace.createFileSystemWatcher(distPattern);
+        distWatcher.onDidChange(reloadWebviews, null, context.subscriptions);
+        distWatcher.onDidCreate(reloadWebviews, null, context.subscriptions);
+        distWatcher.onDidDelete(reloadWebviews, null, context.subscriptions);
+        context.subscriptions.push(distWatcher);
+
+        console.log('Infinite Edit: enabled auto webview reload for dist changes (development mode)');
+    }
 }
 
 // This method is called when your extension is deactivated

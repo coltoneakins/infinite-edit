@@ -25,6 +25,7 @@ class App {
             backgroundAlpha: 0,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
+            antialias: true,
         });
 
         // Initialize MaskManager
