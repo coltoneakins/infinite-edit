@@ -3,6 +3,7 @@ import { MessageBus } from '../services/MessageBus';
 import { MONACO_WORKER_FILES } from '../../shared/MonacoConfig';
 import { InfiniteFileSystemProvider } from '../providers/FileSystemProvider';
 import { ConfigurationManager } from '../services/ConfigurationManager';
+import { AppPersistenceService } from '../services/AppPersistenceService';
 
 export class InfiniteEditPanel {
     public static currentPanel: InfiniteEditPanel | undefined;
@@ -13,15 +14,16 @@ export class InfiniteEditPanel {
     private _disposables: vscode.Disposable[] = [];
     private _isReady: boolean = false;
     private _pendingMessages: any[] = [];
-    private _openFiles: { file: string, content: string, uri: string, diagnostics: any[], selection?: any }[] = [];
+    private readonly _persistenceService: AppPersistenceService;
 
     private readonly _messageBus: MessageBus = new MessageBus();
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider, configManager: ConfigurationManager) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider, configManager: ConfigurationManager, context: vscode.ExtensionContext) {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._fileSystemProvider = fileSystemProvider;
         this._configManager = configManager;
+        this._persistenceService = new AppPersistenceService(context.storageUri);
         this._messageBus.setWebview(this._panel.webview);
 
         // Set the webview's initial html content
@@ -56,7 +58,7 @@ export class InfiniteEditPanel {
             vscode.window.showErrorMessage(message.text);
         });
 
-        this._messageBus.register('ready', () => {
+        this._messageBus.register('ready', async () => {
             this._isReady = true;
 
             // Send configuration to webview.
@@ -65,15 +67,38 @@ export class InfiniteEditPanel {
                 config: this._configManager.getConfig()
             });
 
-            // Rehydrate open files after a reload.
-            for (const openFile of this._openFiles) {
+            // Restore persisted canvas session (open editors at saved positions).
+            const persistedState = await this._persistenceService.load();
+            if (persistedState && persistedState.canvas.nodes.length > 0) {
+                for (const node of persistedState.canvas.nodes) {
+                    try {
+                        const fileUri = vscode.Uri.file(node.filePath);
+                        const document = await vscode.workspace.openTextDocument(fileUri);
+                        const infiniteUri = InfiniteFileSystemProvider.getUri(node.filePath);
+                        const diagnostics = vscode.languages.getDiagnostics(document.uri);
+                        this._panel.webview.postMessage({
+                            command: 'openFile',
+                            file: node.filePath,
+                            uri: infiniteUri.toString(),
+                            content: document.getText(),
+                            diagnostics: diagnostics.map(d => ({
+                                message: d.message,
+                                severity: this._mapSeverity(d.severity),
+                                startLineNumber: d.range.start.line + 1,
+                                startColumn: d.range.start.character + 1,
+                                endLineNumber: d.range.end.line + 1,
+                                endColumn: d.range.end.character + 1
+                            })),
+                            layout: { x: node.x, y: node.y, width: node.width, height: node.height, zIndex: node.zIndex }
+                        });
+                    } catch (e) {
+                        console.warn(`InfiniteEditPanel: Failed to restore node '${node.filePath}':`, e);
+                    }
+                }
+                // Restore the viewport after all files are queued.
                 this._panel.webview.postMessage({
-                    command: 'openFile',
-                    file: openFile.file,
-                    uri: openFile.uri,
-                    content: openFile.content,
-                    diagnostics: openFile.diagnostics,
-                    selection: openFile.selection
+                    command: 'restoreViewport',
+                    viewport: persistedState.canvas.viewport
                 });
             }
 
@@ -326,6 +351,11 @@ export class InfiniteEditPanel {
             await vscode.window.showTextDocument(uri, { preview: false });
         });
 
+        // Persist application state received from the webview's AppStateManager.
+        this._messageBus.register('saveAppState', async (message) => {
+            await this._persistenceService.save(message.state);
+        });
+
         // Forward VS Code document changes to the webview
         vscode.workspace.onDidChangeTextDocument(e => {
             const scheme = e.document.uri.scheme;
@@ -338,16 +368,6 @@ export class InfiniteEditPanel {
                     uri: infiniteUri.toString(),
                     content: e.document.getText()
                 });
-
-                // Keep in-memory open file content in sync so state can be restored on reload
-                const openFileIndex = this._openFiles.findIndex(item => item.file === filePath);
-                if (openFileIndex !== -1) {
-                    this._openFiles[openFileIndex] = {
-                        ...this._openFiles[openFileIndex],
-                        content: e.document.getText(),
-                        uri: infiniteUri.toString()
-                    };
-                }
 
                 // If a real file changed, notify the provider to update virtual documents
                 if (scheme === 'file') {
@@ -480,7 +500,7 @@ export class InfiniteEditPanel {
     }
 
 
-    public static createOrShow(extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider, configManager: ConfigurationManager) {
+    public static createOrShow(extensionUri: vscode.Uri, fileSystemProvider: InfiniteFileSystemProvider, configManager: ConfigurationManager, context: vscode.ExtensionContext) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -510,7 +530,7 @@ export class InfiniteEditPanel {
         // Set the icon for the editor tab
         panel.iconPath = vscode.Uri.joinPath(extensionUri, 'assets', 'icon.png');
 
-        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri, fileSystemProvider, configManager);
+        InfiniteEditPanel.currentPanel = new InfiniteEditPanel(panel, extensionUri, fileSystemProvider, configManager, context);
 
         // Pin the panel (do this after creating the panel instance and setting HTML)
         vscode.commands.executeCommand('workbench.action.pinEditor', panel);
@@ -544,23 +564,9 @@ export class InfiniteEditPanel {
                 endLineNumber: selection.end.line + 1,
                 endColumn: selection.end.character + 1
             } : undefined
+            // Note: no `layout` here — new files get auto-positioned by CanvasManager.
+            // Persistence is handled entirely by the webview's appStateManager.
         };
-
-        // Track open file state for reload rehydration.
-        const existingIndex = this._openFiles.findIndex(entry => entry.file === document.fileName);
-        const openFileState = {
-            file: document.fileName,
-            content: document.getText(),
-            uri: infiniteUri.toString(),
-            diagnostics: message.diagnostics,
-            selection: message.selection
-        };
-
-        if (existingIndex >= 0) {
-            this._openFiles[existingIndex] = openFileState;
-        } else {
-            this._openFiles.push(openFileState);
-        }
 
         if (this._isReady) {
             this._panel.webview.postMessage(message);

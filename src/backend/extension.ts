@@ -49,8 +49,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Register commands for VS Code's command palette
-    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri, fileSystemProvider, configManager));
-    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri, fileSystemProvider, configManager));
+    const openCanvasDisposable = vscode.commands.registerCommand('infinite-edit.openCanvas', openCanvasCommand(context.extensionUri, fileSystemProvider, configManager, context));
+    const openFileDisposable = vscode.commands.registerCommand('infinite-edit.openFile', openFileCommand(context.extensionUri, fileSystemProvider, configManager, context));
     context.subscriptions.push(openCanvasDisposable, openFileDisposable);
 
     // Register LSP bridge providers

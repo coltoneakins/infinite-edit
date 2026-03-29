@@ -4,6 +4,7 @@ import { MessageClient } from '../core/MessageClient';
 import { MaskManager } from './MaskManager';
 import { ModelManager } from './ModelManager';
 import { LSPBridge } from './LSPBridge';
+import { AppStateManager } from './AppStateManager';
 
 class App {
 
@@ -12,6 +13,7 @@ class App {
     private messageClient!: MessageClient;
     private maskManager!: MaskManager;
     private modelManager!: ModelManager;
+    private appStateManager!: AppStateManager;
     private resizeHandler!: () => void;
     private messageHandler!: (event: MessageEvent) => void;
     public ready: Promise<void>;
@@ -65,13 +67,16 @@ class App {
         // This is where the frontend handles message passing
         this.messageClient = new MessageClient();
 
+        // Initialize appStateManager (travels-backed, auto-persists via MessageClient)
+        this.appStateManager = new AppStateManager(this.messageClient);
+
         // Initialize ModelManager (must be before LSPBridge and CanvasManager)
         this.modelManager = ModelManager.initialize(this.messageClient);
 
         // Initialize LSP Bridge
         new LSPBridge(this.messageClient);
 
-        this.canvasManager = new CanvasManager(this.app, this.messageClient);
+        this.canvasManager = new CanvasManager(this.app, this.messageClient, this.appStateManager);
 
         // Handle window resize
         this.resizeHandler = () => {
@@ -87,7 +92,10 @@ class App {
 
             switch (message.command) {
                 case 'openFile':
-                    this.canvasManager.addEditor(message.file, message.content, message.uri, message.diagnostics, message.selection);
+                    this.canvasManager.addEditor(message.file, message.content, message.uri, message.diagnostics, message.selection, message.layout);
+                    break;
+                case 'restoreViewport':
+                    this.canvasManager.setViewport(message.viewport);
                     break;
                 case 'didChangeTextDocument':
                     // Update model content through ModelManager (handles dirty state)

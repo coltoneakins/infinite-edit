@@ -5,6 +5,9 @@ import { Viewport } from './Viewport';
 import { NodeLayoutManager } from './NodeLayoutManager';
 import { Toolbar } from '../ui/Toolbar';
 import { MessageClient } from '../core/MessageClient';
+import { AppStateManager } from '../core/AppStateManager';
+import { PersistedLayoutHint } from '../../shared/types/messages';
+import { PersistedViewportState } from '../../shared/types/canvasState';
 
 import { MaskManager, MaskedHitArea } from '../core/MaskManager';
 
@@ -25,9 +28,11 @@ export class CanvasManager {
     private messageClient: MessageClient | null = null;
     private toolbar: Toolbar | null = null;
     private nodes: EditorNode[] = [];
+    private appStateManager: AppStateManager;
 
-    constructor(app: Application, messageClient: MessageClient) {
+    constructor(app: Application, messageClient: MessageClient, appStateManager: AppStateManager) {
         this.messageClient = messageClient;
+        this.appStateManager = appStateManager;
         this.app = app;
         this.stage = app.stage;
         this.maskManager = new MaskManager();
@@ -107,9 +112,8 @@ export class CanvasManager {
         this.updateToolbarPosition();
     }
 
-    public addEditor(file: string, content: string, uri: string, diagnostics: any[] = [], selection?: any) {
+    public addEditor(file: string, content: string, uri: string, diagnostics: any[] = [], selection?: any, layout?: PersistedLayoutHint) {
         // Find existing editor for this file
-        // Note: The logic previously didn't handle selection if file was already open.
         const existing = this.nodes.find(n => n instanceof EditorNode && n.getFilePath() === file) as EditorNode | undefined;
         if (existing) {
             existing.updateContent(content);
@@ -123,17 +127,20 @@ export class CanvasManager {
             return;
         }
 
-        // Calculate intelligent size based on file content
-        const calculatedSize = this.layoutManager.calculateSizeForContent(content);
+        // Use persisted layout if available, otherwise calculate from content.
+        const calculatedSize = layout
+            ? { width: layout.width, height: layout.height }
+            : this.layoutManager.calculateSizeForContent(content);
 
-        // Calculate position (to the right of focused node, or center if first node)
         const viewportCenter = this.viewport.getCenter();
-        const calculatedPosition = this.layoutManager.calculatePositionForNewNode(
-            calculatedSize,
-            { x: viewportCenter.x, y: viewportCenter.y }
-        );
+        const calculatedPosition = layout
+            ? { x: layout.x, y: layout.y }
+            : this.layoutManager.calculatePositionForNewNode(
+                calculatedSize,
+                { x: viewportCenter.x, y: viewportCenter.y }
+            );
 
-        // Create editor with calculated size
+        // Create editor with determined size
         const editor = new EditorNode(file, content, uri, this.messageClient!, this.maskManager, {
             initialWidth: calculatedSize.width,
             initialHeight: calculatedSize.height,
@@ -147,13 +154,35 @@ export class CanvasManager {
         editor.x = calculatedPosition.x;
         editor.y = calculatedPosition.y;
 
+        // Restore persisted z-order, otherwise let bringToFront() (called in constructor) handle it.
+        if (layout) {
+            editor.setZIndex(layout.zIndex);
+        }
+
         // Register with layout manager and set as focused
         this.layoutManager.registerNode(file, editor);
 
-        // Track focus changes when editor is brought to front
+        // Track close, position, and size changes for state persistence
         editor.on('close', () => this.removeEditor(editor));
+        editor.on('moved', () => {
+            this.appStateManager.updateNode(file, { x: editor.x, y: editor.y });
+        });
+        editor.on('resized', () => {
+            this.appStateManager.updateNode(file, { width: editor.width, height: editor.height });
+        });
 
         this.nodes.push(editor);
+
+        // Register initial node state
+        this.appStateManager.addNode({
+            filePath: file,
+            uri,
+            x: editor.x,
+            y: editor.y,
+            width: editor.width,
+            height: editor.height,
+            zIndex: editor.zIndex
+        });
 
         // MaskManager updates automatically or via Ticker
         this.maskManager.update();
@@ -183,8 +212,9 @@ export class CanvasManager {
     public removeEditor(editor: EditorNode) {
         const index = this.nodes.indexOf(editor);
         if (index !== -1) {
-            // Unregister from layout manager
+            // Unregister from layout manager and state
             this.layoutManager.unregisterNode(editor.getFilePath());
+            this.appStateManager.removeNode(editor.getFilePath());
 
             this.nodes.splice(index, 1);
             this.contentContainer.removeChild(editor);
@@ -198,6 +228,19 @@ export class CanvasManager {
      */
     public getLayoutManager(): NodeLayoutManager {
         return this.layoutManager;
+    }
+
+    /**
+     * Restores the viewport to a previously persisted pan/zoom state.
+     * Called by App.ts when the backend sends a `restoreViewport` message.
+     */
+    public setViewport(viewport: PersistedViewportState): void {
+        this.contentContainer.x = viewport.panX;
+        this.contentContainer.y = viewport.panY;
+        this.zoomLevel = viewport.zoom;
+        const newScale = Math.pow(this.ZOOM_BASE, this.zoomLevel);
+        this.contentContainer.scale.set(newScale);
+        this.updateGrid();
     }
 
     private onPointerDown(e: FederatedPointerEvent) {
@@ -214,6 +257,12 @@ export class CanvasManager {
         console.log('CanvasManager: onPointerUp');
         this.isDragging = false;
         this.lastPos = null;
+        // Persist viewport after a pan gesture ends.
+        this.appStateManager.updateViewport({
+            panX: this.contentContainer.x,
+            panY: this.contentContainer.y,
+            zoom: this.zoomLevel
+        });
     }
 
     private onPointerMove(e: FederatedPointerEvent) {
@@ -249,6 +298,13 @@ export class CanvasManager {
         // Adjust position so the mouse cursor stays over the same world position
         this.contentContainer.x = e.global.x - worldPos.x * newScale;
         this.contentContainer.y = e.global.y - worldPos.y * newScale;
+
+        // Persist updated viewport after zoom.
+        this.appStateManager.updateViewport({
+            panX: this.contentContainer.x,
+            panY: this.contentContainer.y,
+            zoom: this.zoomLevel
+        });
 
         this.updateGrid();
     }

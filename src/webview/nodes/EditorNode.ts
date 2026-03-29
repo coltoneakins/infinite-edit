@@ -517,6 +517,11 @@ export class EditorNode extends DOMContainer implements MaskProvider {
     public setZIndex(z: number) {
         this.zIndex = z;
         this.wrapper.style.zIndex = z.toString();
+        // Keep the global counter at the high-water mark so new nodes always
+        // open above restored ones when bringToFront() is called next.
+        if (z > EditorNode.globalMaxZIndex) {
+            EditorNode.globalMaxZIndex = z;
+        }
     }
 
     public bringToFront() {
