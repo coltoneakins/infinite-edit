@@ -448,13 +448,16 @@ export class InfiniteEditPanel {
         const nonce = this._getNonce();
         // Monaco Editor requires 'unsafe-inline' for dynamic styles, data: for fonts, and blob: for workers
         // In development, we also need to allow the dev server
+        const devServerHost = isDevelopment ? new URL(devServerUrl).host : '';
+        const devWsSource = isDevelopment ? `ws://${devServerHost}` : '';
+
         const cspSource = `default-src 'none'; 
             script-src 'nonce-${nonce}' 'unsafe-eval' ${webview.cspSource} ${isDevelopment ? devServerUrl : ''}; 
             style-src ${webview.cspSource} 'unsafe-inline' ${isDevelopment ? devServerUrl : ''}; 
             img-src ${webview.cspSource} data: ${isDevelopment ? devServerUrl : ''}; 
             font-src ${webview.cspSource} data: ${isDevelopment ? devServerUrl : ''};
-            connect-src ${isDevelopment ? `${devServerUrl} ws://${devServerUrl.replace('http://', '')} blob:` : 'blob:'};
-            worker-src blob: ${isDevelopment ? devServerUrl : ''};`.replace(/\s+/g, ' ').trim();
+            connect-src ${webview.cspSource} ${isDevelopment ? `${devServerUrl} ${devWsSource} ws://0.0.0.0:3000 ws://127.0.0.1:3000` : ''} blob:;
+            worker-src ${webview.cspSource} blob: ${isDevelopment ? devServerUrl : 'blob:'};`.replace(/\s+/g, ' ').trim();
 
         return `<!DOCTYPE html>
 			<html lang="en">

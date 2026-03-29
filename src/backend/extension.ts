@@ -11,8 +11,17 @@ import { ConfigurationManager } from './services/ConfigurationManager';
 
 // Enable Hot Reload in development mode
 if (process.env.NODE_ENV === "development") {
-    const { enableHotReload } = require("@hediet/node-reload/node");
-    enableHotReload({ entryModule: module });
+    try {
+        const { enableHotReload } = require("@hediet/node-reload/node");
+
+        if (module && typeof module.filename === 'string' && module.filename.length > 0) {
+            enableHotReload({ entryModule: module });
+        } else {
+            console.warn('Infinite Edit: node-reload entry module path unavailable, skipping hot reload.');
+        }
+    } catch (error) {
+        console.warn('Infinite Edit: failed to initialize hot reload', error);
+    }
 }
 
 
