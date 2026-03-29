@@ -62,56 +62,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider)
     );
 
-    // Development-only convenience: automatically notify webviews when compiled dist output changes.
-    // We avoid full webview HTML reload and prefer HMR in the webview runtime.
-    if (process.env.NODE_ENV === 'development') {
-        let pendingWebviewUpdate: NodeJS.Timeout | undefined;
-        let hmrUpdateSuppression: NodeJS.Timeout | undefined;
-        let hmrUpdatePending = false;
-
-        const reloadWebviews = () => {
-            // Debounce rapid partial file writes from compiler and avoid mid-build reload artifacts.
-            if (pendingWebviewUpdate) {
-                clearTimeout(pendingWebviewUpdate);
-            }
-            pendingWebviewUpdate = setTimeout(() => {
-                if (InfiniteEditPanel.currentPanel && InfiniteEditPanel.currentPanel.hasHmr) {
-                    // HMR is responsible for applying updates, do not flood extension_host with repeats.
-                    if (!hmrUpdatePending) {
-                        console.log('Infinite Edit: HMR active; suppressing dist updates and allowing webpack to patch once.');
-                    }
-
-                    hmrUpdatePending = true;
-                    if (hmrUpdateSuppression) {
-                        clearTimeout(hmrUpdateSuppression);
-                    }
-                    hmrUpdateSuppression = setTimeout(() => {
-                        hmrUpdatePending = false;
-                        hmrUpdateSuppression = undefined;
-                    }, 500);
-
-                } else {
-                    console.log('Infinite Edit: dist output changed; notifying webview for non-HMR update.');
-                    if (InfiniteEditPanel.currentPanel) {
-                        InfiniteEditPanel.currentPanel.notifyDevAssetUpdate();
-                    } else {
-                        void vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
-                    }
-                }
-
-                pendingWebviewUpdate = undefined;
-            }, 120);
-        };
-
-        const distPattern = new vscode.RelativePattern(context.extensionUri.fsPath, 'dist/**');
-        const distWatcher = vscode.workspace.createFileSystemWatcher(distPattern);
-        distWatcher.onDidChange(reloadWebviews, null, context.subscriptions);
-        distWatcher.onDidCreate(reloadWebviews, null, context.subscriptions);
-        distWatcher.onDidDelete(reloadWebviews, null, context.subscriptions);
-        context.subscriptions.push(distWatcher);
-
-        console.log('Infinite Edit: enabled dev-mode webview HMR notification for dist changes');
-    }
 }
 
 // This method is called when your extension is deactivated

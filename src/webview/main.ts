@@ -37,34 +37,12 @@ declare const module: any;
     // Signal that we are ready to receive messages
     app.messageClientInstance.send('ready');
 
-    const hmr =
-        (import.meta as any).hot ||
-        (import.meta as any).webpackHot ||
-        (typeof module !== 'undefined' && (module as any).hot) ||
-        (window as any).__webpack_hmr__ ||
-        (window as any).webpackHotUpdate ||
-        (window as any).RSPACK_HMR ||
-        (window as any).__RSPACK_HMR__;
-
-    app.messageClientInstance.send('hmrStatus', { enabled: !!hmr });
-    console.log('HMR probe:', {
-        importMetaHot: !!(import.meta as any).hot,
-        importMetaWebpackHot: !!(import.meta as any).webpackHot,
-        moduleHot: typeof module !== 'undefined' && !!(module as any).hot,
-        globalWebpackHmr: !!(window as any).__webpack_hmr__,
-        globalWebpackHotUpdate: !!(window as any).webpackHotUpdate,
-        globalRspackHmr: !!(window as any).RSPACK_HMR || !!(window as any).__RSPACK_HMR__
-    });
+    // Prefer ESM-style HMR API (import.meta.hot). Fall back to CommonJS-style `module.hot`.
+    const hmr = (import.meta as any).hot || (typeof module !== 'undefined' && (module as any).hot);
 
     if (hmr) {
-        console.log('HMR: hot module API available.', hmr);
-
-        hmr.accept?.(() => {
-            console.log('HMR: main module accepted.');
-        });
-
+        // Dispose the existing app instance before this module is replaced.
         hmr.dispose?.(() => {
-            console.log('HMR: disposing existing app instance.');
             try {
                 const existingApp = (window as any).infiniteEditApp as App | undefined;
                 existingApp?.dispose?.();
@@ -72,8 +50,16 @@ declare const module: any;
                 console.error('HMR dispose error', e);
             }
         });
-    } else {
-        console.warn('HMR: no hot module API detected.');
+
+        // Self-accept: Rspack will patch this module in place on each rebuild.
+        hmr.accept?.();
+
+        // Fall back to a full reload if HMR cannot apply the update.
+        hmr.addStatusHandler?.((status: string) => {
+            if (status === 'fail') {
+                window.location.reload();
+            }
+        });
     }
 
 })();

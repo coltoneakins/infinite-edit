@@ -85,42 +85,6 @@ class App {
         this.messageHandler = (event: MessageEvent) => {
             const message = event.data;
 
-            if (message.command === 'distUpdated') {
-                const hmrActive =
-                    (import.meta as any).hot ||
-                    (import.meta as any).webpackHot ||
-                    (typeof module !== 'undefined' && (module as any).hot) ||
-                    (window as any).__webpack_hmr__ ||
-                    (window as any).webpackHotUpdate ||
-                    (window as any).RSPACK_HMR ||
-                    (window as any).__RSPACK_HMR__;
-
-                if (hmrActive) {
-                    console.log('HMR mode: dist update received; letting module runtime patch automatically.');
-                    return;
-                }
-
-                console.warn('Fallback: no HMR API detected on dist update, forcing full webview reload.');
-
-                // Attempt full browser reload so the latest compiled webview bundle is fetched.
-                try {
-                    window.location.reload();
-                } catch (e) {
-                    console.error('Unable to hard reload webview; retrying with in-memory soft restart', e);
-                    try {
-                        const existingApp = (window as any).infiniteEditApp as App | undefined;
-                        existingApp?.dispose?.();
-                    } catch (inner) {
-                        console.error('Soft restart cleanup failed', inner);
-                    }
-                    const newApp = new App();
-                    (window as any).infiniteEditApp = newApp;
-                    newApp.ready.then(() => newApp.messageClientInstance.send('ready'));
-                }
-
-                return;
-            }
-
             switch (message.command) {
                 case 'openFile':
                     this.canvasManager.addEditor(message.file, message.content, message.uri, message.diagnostics, message.selection);
