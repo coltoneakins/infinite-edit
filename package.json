@@ -71,8 +71,8 @@
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "rspack",
-    "watch": "NODE_ENV=development rspack --watch",
-    "serve-webview": "NODE_ENV=development rspack serve",
+    "watch": "NODE_ENV=development rspack --watch --config-name extension",
+    "serve-webview": "NODE_ENV=development rspack serve --config-name webview",
     "dev": "concurrently \"npm run watch\" \"npm run serve-webview\"",
     "package": "NODE_ENV=production rspack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
@@ -97,7 +97,6 @@
     "less-loader": "^12.3.0",
     "sass": "^1.97.1",
     "sass-loader": "^16.0.6",
-    "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3",
     "monaco-editor-webpack-plugin": "^7.1.1"

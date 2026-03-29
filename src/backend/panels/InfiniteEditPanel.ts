@@ -339,7 +339,7 @@ export class InfiniteEditPanel {
                     content: e.document.getText()
                 });
 
-                // Keep in-memory open file content in sync so a hot reload can rehydrate properly.
+                // Keep in-memory open file content in sync so state can be restored on reload
                 const openFileIndex = this._openFiles.findIndex(item => item.file === filePath);
                 if (openFileIndex !== -1) {
                     this._openFiles[openFileIndex] = {

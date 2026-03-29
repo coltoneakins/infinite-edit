@@ -39,9 +39,9 @@ const extensionConfig = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader',
+            loader: 'builtin:swc-loader',
             options: {
-              transpileOnly: true
+              jsc: { parser: { syntax: 'typescript' } }
             }
           }
         ]
@@ -69,11 +69,14 @@ const webviewConfig = {
     publicPath: isDevelopment ? (process.env.DEV_SERVER_URL || 'http://localhost:3000/') : './',
     module: true
   },
-  hot: true,
   experiments: {
     outputModule: true
   },
   lazyCompilation: false,
+  cache: isDevelopment ? {
+    type: 'filesystem',
+    cacheDirectory: path.resolve(__dirname, '.rspack-cache/webview')
+  } : false,
   resolve: {
     extensions: ['.ts', '.js', '.scss', '.less', '.css']
   },
@@ -84,9 +87,9 @@ const webviewConfig = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader',
+            loader: 'builtin:swc-loader',
             options: {
-              transpileOnly: true
+              jsc: { parser: { syntax: 'typescript' } }
             }
           }
         ]
@@ -95,7 +98,7 @@ const webviewConfig = {
         test: /\.less$/i,
         type: 'javascript/auto',
         use: [
-          rspack.CssExtractRspackPlugin.loader,
+          isDevelopment ? 'style-loader' : rspack.CssExtractRspackPlugin.loader,
           'css-loader',
           'less-loader'
         ]
@@ -104,7 +107,7 @@ const webviewConfig = {
         test: /\.(s[ac]ss|css)$/i,
         type: 'javascript/auto',
         use: [
-          rspack.CssExtractRspackPlugin.loader,
+          isDevelopment ? 'style-loader' : rspack.CssExtractRspackPlugin.loader,
           'css-loader',
           'sass-loader'
         ]
@@ -124,12 +127,10 @@ const webviewConfig = {
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
       'process.env.DEV_SERVER_URL': JSON.stringify(process.env.DEV_SERVER_URL || 'http://localhost:3000')
     }),
-    new rspack.CssExtractRspackPlugin({
-      filename: 'main.css'
-    }),
-    new rspack.HotModuleReplacementPlugin(),
+    ...(isDevelopment ? [] : [new rspack.CssExtractRspackPlugin({ filename: 'main.css' })]),
     new MonacoWebpackPlugin({
-      languages: ['javascript', 'typescript', 'json', 'css', 'html']
+      languages: ['javascript', 'typescript', 'json', 'css', 'html'],
+      only: ['editorWorkerService', 'javascript', 'typescript', 'json', 'css', 'html']
     })
   ],
   devServer: {
