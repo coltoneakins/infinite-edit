@@ -66,17 +66,21 @@ const webviewConfig = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'webview.js',
+    cssFilename: 'main.css',
     publicPath: isDevelopment ? (process.env.DEV_SERVER_URL || 'http://localhost:3000/') : './',
     module: true
   },
   experiments: {
-    outputModule: true
+    outputModule: true,
+    css: true,
+    incremental: 'advance',
+    cache: {
+      type: "persistent",
+      buildDependencies: [__filename, path.join(__dirname, './rspack.config.js')]
+    }
   },
   lazyCompilation: false,
-  cache: isDevelopment ? {
-    type: 'filesystem',
-    cacheDirectory: path.resolve(__dirname, '.rspack-cache/webview')
-  } : false,
+  cache: isDevelopment ? true : false,
   resolve: {
     extensions: ['.ts', '.js', '.scss', '.less', '.css']
   },
@@ -96,21 +100,13 @@ const webviewConfig = {
       },
       {
         test: /\.less$/i,
-        type: 'javascript/auto',
-        use: [
-          isDevelopment ? 'style-loader' : rspack.CssExtractRspackPlugin.loader,
-          'css-loader',
-          'less-loader'
-        ]
+        use: ['less-loader'],
+        type: 'css/auto'
       },
       {
-        test: /\.(s[ac]ss|css)$/i,
-        type: 'javascript/auto',
-        use: [
-          isDevelopment ? 'style-loader' : rspack.CssExtractRspackPlugin.loader,
-          'css-loader',
-          'sass-loader'
-        ]
+        test: /\.(s[ac]ss)$/i,
+        use: ['sass-loader'],
+        type: 'css/auto'
       },
       {
         test: /\.(ttf|woff|woff2|eot|svg)$/i,
@@ -127,7 +123,6 @@ const webviewConfig = {
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
       'process.env.DEV_SERVER_URL': JSON.stringify(process.env.DEV_SERVER_URL || 'http://localhost:3000')
     }),
-    ...(isDevelopment ? [] : [new rspack.CssExtractRspackPlugin({ filename: 'main.css' })]),
     new MonacoWebpackPlugin({
       languages: ['javascript', 'typescript', 'json', 'css', 'html'],
       only: ['editorWorkerService', 'javascript', 'typescript', 'json', 'css', 'html']
