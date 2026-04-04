@@ -1,8 +1,8 @@
 import { Container, DOMContainer, Graphics, FederatedPointerEvent, Rectangle } from 'pixi.js';
 import * as monaco from 'monaco-editor';
 import { MessageClient } from '../core/MessageClient';
-import { MaskManager, MaskProvider } from '../core/MaskManager';
-import { ModelManager, IModelReference } from '../core/ModelManager';
+import { MaskManager, type MaskProvider } from '../core/MaskManager';
+import { ModelManager, type IModelReference } from '../core/ModelManager';
 
 /**
  * Options for creating an EditorNode

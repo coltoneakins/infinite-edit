@@ -6,8 +6,8 @@ import { NodeLayoutManager } from './NodeLayoutManager';
 import { Toolbar } from '../ui/Toolbar';
 import { MessageClient } from '../core/MessageClient';
 import { AppStateManager } from '../core/AppStateManager';
-import { PersistedLayoutHint } from '../../shared/types/messages';
-import { PersistedViewportState } from '../../shared/types/canvasState';
+import { type PersistedLayoutHint } from '../../shared/types/messages';
+import { type PersistedViewportState } from '../../shared/types/canvasState';
 
 import { MaskManager, MaskedHitArea } from '../core/MaskManager';
 

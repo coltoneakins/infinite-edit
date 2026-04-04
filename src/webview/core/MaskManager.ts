@@ -1,4 +1,4 @@
-import { Rectangle, IHitArea } from 'pixi.js';
+import { Rectangle, type IHitArea } from 'pixi.js';
 
 export interface MaskProvider {
     getMaskLocalBounds(): Rectangle;
